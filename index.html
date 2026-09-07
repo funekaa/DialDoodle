@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DialDoodle 转盘画 - 旋转解密绘图生成器</title>
-  <link rel="stylesheet" href="css/style.css">
+  <title>DialDoodle 转盘画 v0.5 - 旋转解密绘图生成器</title>
+  <link rel="stylesheet" href="css/style.css?v=0.5">
 </head>
 <body>
 
@@ -13,7 +13,7 @@
     <div class="logo-area">
       <div class="logo-icon">🎯</div>
       <div class="logo-text">
-        <h1>DialDoodle · 转盘画</h1>
+        <h1>DialDoodle · 转盘画 v0.5</h1>
         <p>打散简笔画 · 旋转开槽描线 · A/B 纸几何解密</p>
       </div>
     </div>
@@ -62,13 +62,36 @@
           </div>
         </div>
 
-        <!-- 上传图片区 -->
+        <!-- 上传图片区 (框内纯净全景展示原图，绝不遮挡) -->
         <div class="tab-content" id="tab-upload" style="display: none;">
+          <input type="file" id="fileInput" accept="image/*" style="display: none;">
+          
           <div class="upload-dropzone" id="dropzone">
-            <input type="file" id="fileInput" accept="image/*" style="display: none;">
-            <div style="font-size: 28px; margin-bottom: 6px;">📁</div>
-            <p style="font-size: 13px; font-weight: 600;">点击或拖拽简笔画图片到此处</p>
-            <p style="font-size: 11px; color: #94A3B8; margin-top: 4px;">建议上传清晰的白底黑色线条简笔画</p>
+            <!-- 默认未上传提示 -->
+            <div id="dropzonePrompt">
+              <div style="font-size: 32px; margin-bottom: 6px;">📁</div>
+              <p style="font-size: 13px; font-weight: 600;">点击或拖拽简笔画图片到此处</p>
+              <p style="font-size: 11px; color: #94A3B8; margin-top: 4px;">建议上传清晰的白底黑色线条简笔画</p>
+            </div>
+
+            <!-- 上传后在此框内全幅纯净呈现原图，绝不遮挡图片任何部位 -->
+            <div id="dropzonePreview" style="display: none;">
+              <img id="uploadPreviewImg" src="" alt="已导入简笔画原图">
+            </div>
+          </div>
+
+          <!-- 移到框外的独立信息与更换按钮操作栏，绝不挡住原图 -->
+          <div class="upload-action-bar" id="uploadActionBar" style="display: none;">
+            <span class="upload-file-tag" id="uploadFileName">已上传图片</span>
+            <button type="button" class="btn btn-outline btn-sm" id="btnChangeImage">更换图片</button>
+          </div>
+
+          <!-- 上传与分析进度条 -->
+          <div class="upload-progress-container" id="uploadProgressContainer" style="display: none;">
+            <div class="progress-bar-track">
+              <div class="progress-bar-fill" id="uploadProgressBar" style="width: 0%;"></div>
+            </div>
+            <div class="progress-bar-text" id="uploadProgressText">准备就绪...</div>
           </div>
         </div>
       </section>
@@ -87,17 +110,8 @@
             <span class="val-tag" id="tickCountVal">12 个刻度</span>
           </div>
           <input type="range" id="tickCountRange" min="10" max="20" step="1" value="12">
-        </div>
-
-        <!-- 开槽安全间隔 (利用刻度不均匀控制) -->
-        <div class="control-group">
-          <div class="control-label">
-            <span>开槽防相交安全间隔</span>
-            <span class="val-tag" id="clearanceVal">标准 (12px / 3.5mm)</span>
-          </div>
-          <input type="range" id="clearanceRange" min="8" max="22" step="1" value="12">
           <p style="font-size: 11px; color: #64748B; margin-top: 4px;">
-            自动计算非均匀刻度角，确保所有开槽绝对不相交接触并保留安全纸桥
+            在 10 ~ 20 之间精确调整，开槽将严格按此刻度数精准排布
           </p>
         </div>
 

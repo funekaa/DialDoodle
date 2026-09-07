@@ -73,20 +73,20 @@ export const Exporter = {
         // 角度（正上方为 0 度）
         ctx.rotate(Geometry.degToRad(tick.angleDeg - 90));
 
-        // 粗实线刻度线
+        // 粗实线刻度线 (精致短巧，长度做短一半)
         ctx.strokeStyle = '#0F172A';
         ctx.lineWidth = 3.5;
         ctx.beginPath();
-        ctx.moveTo(radius - 40, 0);
+        ctx.moveTo(radius - 20, 0);
         ctx.lineTo(radius, 0);
         ctx.stroke();
 
         // 刻度编号
-        ctx.font = 'bold 28px Arial, sans-serif';
+        ctx.font = 'bold 26px Arial, sans-serif';
         ctx.fillStyle = '#0F172A';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(tick.id.toString(), radius - 68, 0);
+        ctx.fillText(tick.id.toString(), radius - 44, 0);
 
         ctx.restore();
       });

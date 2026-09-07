@@ -512,11 +512,11 @@ export const Simulator = {
         // 刻度角 (0在正上方，顺时针方向)
         ctx.rotate(Geometry.degToRad(tick.angleDeg - 90));
 
-        // 刻度线
+        // 刻度线 (精致精炼，长度做短一半)
         ctx.strokeStyle = isAligned ? '#EF4444' : (isDone ? '#10B981' : '#334155');
         ctx.lineWidth = isAligned ? 3.5 : 2;
         ctx.beginPath();
-        ctx.moveTo(radius - 24, 0);
+        ctx.moveTo(radius - 12, 0);
         ctx.lineTo(radius, 0);
         ctx.stroke();
 
@@ -525,7 +525,7 @@ export const Simulator = {
         ctx.fillStyle = isAligned ? '#EF4444' : (isDone ? '#10B981' : '#1E293B');
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(tick.id.toString(), radius - 36, 0);
+        ctx.fillText(tick.id.toString(), radius - 24, 0);
 
         ctx.restore();
       });

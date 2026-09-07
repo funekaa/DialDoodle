@@ -314,23 +314,22 @@ class App {
    * 初始化参数控制器
    */
   initControls() {
-    // 刻度数量
+    // 刻度数量 (调整参数后不立刻计算，需按底部“重新计算”按钮生效，避免频繁计算卡死)
     const tickRange = document.getElementById('tickCountRange');
     const tickVal = document.getElementById('tickCountVal');
     tickRange.addEventListener('input', (e) => {
       this.tickCount = parseInt(e.target.value, 10);
-      tickVal.textContent = `${this.tickCount} 个刻度`;
-      this.regenerate();
+      tickVal.textContent = `${this.tickCount} 个刻度 (待生效)`;
     });
 
-    // 开槽安全间隔 (利用非均匀刻度控制)
+    // 开槽安全间隔
     const clearanceRange = document.getElementById('clearanceRange');
     const clearanceVal = document.getElementById('clearanceVal');
     if (clearanceRange) {
       clearanceRange.addEventListener('input', (e) => {
         this.safeClearance = parseInt(e.target.value, 10);
-        clearanceVal.textContent = this.safeClearance <= 9 ? '较紧凑 (2.5mm)' : (this.safeClearance >= 16 ? '宽裕安全 (5mm)' : `标准 (${this.safeClearance}px)`);
-        this.regenerate();
+        const text = this.safeClearance <= 9 ? '较紧凑 (2.5mm)' : (this.safeClearance >= 16 ? '宽裕安全 (5mm)' : `标准 (${this.safeClearance}px)`);
+        clearanceVal.textContent = `${text} (待生效)`;
       });
     }
 
@@ -339,8 +338,8 @@ class App {
     const slotVal = document.getElementById('slotWidthVal');
     slotRange.addEventListener('input', (e) => {
       this.slotWidth = parseInt(e.target.value, 10);
-      slotVal.textContent = this.slotWidth <= 3 ? '细线槽 (1~2mm)' : (this.slotWidth >= 8 ? '宽孔槽 (4~5mm)' : '适中 (3mm)');
-      this.regenerate();
+      const text = this.slotWidth <= 3 ? '细线槽 (1~2mm)' : (this.slotWidth >= 8 ? '宽孔槽 (4~5mm)' : '适中 (3mm)');
+      slotVal.textContent = `${text} (待生效)`;
     });
 
     // 画笔颜色
@@ -355,9 +354,22 @@ class App {
       });
     });
 
-    // 重新随机打散按钮
-    document.getElementById('btnRegenerate').addEventListener('click', () => {
-      this.regenerate();
+    // 重新计算非均匀防交叉排布按钮
+    const btnRegenerate = document.getElementById('btnRegenerate');
+    btnRegenerate.addEventListener('click', () => {
+      const originalHtml = btnRegenerate.innerHTML;
+      btnRegenerate.disabled = true;
+      btnRegenerate.innerHTML = '⏳ 正在重新计算防交叉排布...';
+
+      // 异步让 UI 先刷新出按钮加载状态
+      setTimeout(() => {
+        try {
+          this.regenerate();
+        } finally {
+          btnRegenerate.disabled = false;
+          btnRegenerate.innerHTML = originalHtml;
+        }
+      }, 40);
     });
 
     // 模拟器按钮绑定
@@ -437,8 +449,20 @@ class App {
   initUpload() {
     const dropzone = document.getElementById('dropzone');
     const fileInput = document.getElementById('fileInput');
+    const btnChangeImage = document.getElementById('btnChangeImage');
 
-    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('click', (e) => {
+      // 避免点击更换图片按钮冒泡重复触发
+      if (e.target.id === 'btnChangeImage') return;
+      fileInput.click();
+    });
+
+    if (btnChangeImage) {
+      btnChangeImage.addEventListener('click', (e) => {
+        e.stopPropagation();
+        fileInput.click();
+      });
+    }
 
     dropzone.addEventListener('dragover', (e) => {
       e.preventDefault();
@@ -465,15 +489,59 @@ class App {
   }
 
   async handleImageFile(file) {
+    const progressContainer = document.getElementById('uploadProgressContainer');
+    const progressBar = document.getElementById('uploadProgressBar');
+    const progressText = document.getElementById('uploadProgressText');
+    const statusText = document.getElementById('statusText');
+
     try {
-      const statusText = document.getElementById('statusText');
-      statusText.textContent = '⏳ 正在智能分析并提取图片线条轮廓...';
-      const strokes = await ImageProcessor.processImageFile(file);
+      // 1. 立即在画红圈的 dropzone 窗口内部直接呈现图片预览！
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dropzonePrompt = document.getElementById('dropzonePrompt');
+        const dropzonePreview = document.getElementById('dropzonePreview');
+        const previewImg = document.getElementById('uploadPreviewImg');
+        const fileNameEl = document.getElementById('uploadFileName');
+        const uploadActionBar = document.getElementById('uploadActionBar');
+        if (dropzonePrompt && dropzonePreview && previewImg) {
+          previewImg.src = e.target.result;
+          if (fileNameEl) fileNameEl.textContent = file.name || '已导入简笔画';
+          dropzonePrompt.style.display = 'none';
+          dropzonePreview.style.display = 'flex';
+          if (uploadActionBar) uploadActionBar.style.display = 'flex';
+        }
+      };
+      reader.readAsDataURL(file);
+
+      // 2. 显示进度条
+      if (progressContainer) {
+        progressContainer.style.display = 'block';
+        if (progressBar) progressBar.style.width = '10%';
+        if (progressText) progressText.textContent = '正在读取图像文件...';
+      }
+
+      // 3. 骨架化、去重与智能提取线稿
+      const strokes = await ImageProcessor.processImageFile(file, { cx: 0, cy: -82, width: 152, height: 132 }, (pct, msg) => {
+        if (progressBar) progressBar.style.width = `${pct}%`;
+        if (progressText) progressText.textContent = `${msg} (${pct}%)`;
+        if (statusText) statusText.textContent = `⏳ ${msg}`;
+      });
+
       this.currentStrokes = strokes;
       document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+
+      if (progressBar) progressBar.style.width = '100%';
+      if (progressText) progressText.textContent = '✅ 线稿提取完成，正在完成最终旋转排布！';
+
+      // 4. 按用户指定的精确刻度数进行无相交排布
       this.regenerate();
-      alert('已成功提取图片线稿并完成旋转打散！');
+
+      if (statusText) statusText.textContent = '✅ 已成功提取单中心线稿并完成精准旋转打散！';
+      setTimeout(() => {
+        if (progressContainer) progressContainer.style.display = 'none';
+      }, 1500);
     } catch (err) {
+      if (progressContainer) progressContainer.style.display = 'none';
       alert('处理图片失败: ' + err.message);
     }
   }

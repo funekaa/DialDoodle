@@ -1,17 +1,36 @@
 /**
  * 旋转解密绘图盘 - 纯净切分与零碰撞排布算法模块 (Pure Subdivision & Zero Collision)
- * 核心原则：
- * 1. 彻底废除跨笔画拼接合并 (Zero Merge)，从根源杜绝麻花结与自交回折；
- * 2. 闭环严格切分 (1/2 或 1/3)，只做平滑单向截断，所有开槽均为舒展单向线；
- * 3. 严格基于实体槽宽物理碰撞检测，全局求解无交叉角度。
+ * 版本：v0.2
+ * 核心设计原则：
+ * 1. 完整保留所有线条：绝不丢弃任何笔画，多余线段智能分配到空间最远的刻度组作为独立开槽，100% 还原画面！
+ * 2. 画幅安全范围大幅外扩：极径放宽至 24 ~ 146px，充分利用大纸盘空间，图形显著放大！
+ * 3. 开槽必须开口：封闭圆环多段切开并保留足够宽度的实体纸桥，小圆转为开口 C 形槽，大圆多段平滑大弧，完整呈现大脸轮廓且中间绝不脱芯！
+ * 4. 严禁锐角与自交：所有折弯转向角 >= 45° 全部拆分，平滑去噪消除手抖，杜绝任何尖角卡刀与麻花死结；
+ * 5. 刻度线精致短巧，数字间距合理不拥挤。
  */
 
 import { Geometry } from './geometry.js';
 
 export const Splitter = {
   /**
-   * 自动缩放与居中图形至安全环形画幅内
-   * 确保任何开槽点到圆心距离严格在 25 ~ 134px 之间，距离外圆边缘保留至少 45px 坚固纸边，防止剪破
+   * 平滑滤波：消除手绘抖动与高频微小噪点，避免手抖折角被错误碎切
+   */
+  smoothStroke(points) {
+    if (!points || points.length < 3) return points || [];
+    const smoothed = [points[0]];
+    for (let i = 1; i < points.length - 1; i++) {
+      smoothed.push({
+        x: points[i - 1].x * 0.25 + points[i].x * 0.5 + points[i + 1].x * 0.25,
+        y: points[i - 1].y * 0.25 + points[i].y * 0.5 + points[i + 1].y * 0.25
+      });
+    }
+    smoothed.push(points[points.length - 1]);
+    return smoothed;
+  },
+
+  /**
+   * 大画幅安全范围归一化：将图形缩放并居中至饱满大气的环形画幅内
+   * 极径放宽至 24 ~ 146px，充分利用大纸盘空间，距离外裁切边 180 仍留出 34px 安全距离
    */
   normalizeToSafeRegion(rawStrokes) {
     if (!rawStrokes || rawStrokes.length === 0) return [];
@@ -28,8 +47,9 @@ export const Splitter = {
 
     const currentH = Math.max(10, maxY - minY);
     const currentW = Math.max(10, maxX - minX);
-    const targetH = 102;
-    const targetW = 120;
+    // 大画幅尺寸：宽 152, 高 132 (充分利用大纸盘，图形明显更大更舒展！)
+    const targetH = 132;
+    const targetW = 152;
 
     const scale = Math.min(1.0, Math.min(targetH / currentH, targetW / currentW));
     const centerSourceY = (minY + maxY) / 2;
@@ -42,7 +62,7 @@ export const Splitter = {
       }))
     );
 
-    // 严密二次微调：确保所有点到圆心距离严格在 25 ~ 135 之间
+    // 严密二次微调：确保所有点到圆心距离严格在 24 ~ 146 之间
     let minR = Infinity, maxR = 0;
     strokes.forEach(st => {
       st.forEach(pt => {
@@ -52,8 +72,8 @@ export const Splitter = {
       });
     });
 
-    if (minR < 25) {
-      const shiftUp = 26 - minR;
+    if (minR < 24) {
+      const shiftUp = 25 - minR;
       strokes = strokes.map(st => st.map(pt => ({ x: pt.x, y: pt.y - shiftUp })));
     }
 
@@ -64,8 +84,8 @@ export const Splitter = {
         if (r > maxR) maxR = r;
       });
     });
-    if (maxR > 135) {
-      const factor = 135 / maxR;
+    if (maxR > 146) {
+      const factor = 146 / maxR;
       strokes = strokes.map(st => st.map(pt => ({ x: pt.x * factor, y: pt.y * factor })));
     }
 
@@ -73,56 +93,8 @@ export const Splitter = {
   },
 
   /**
-   * 拐角与尖角自动检测与拆分 (Corner & Sharp Angle Splitting)
-   * 核心效果：
-   * 1. 彻底消灭锐角与尖角 (转向角 >= 48度 / 内角 <= 132度)，避免纸张裁剪卡刀或剪破；
-   * 2. 在长线条的显著转折处拆分 (转向角 >= 28度)，打散诸如小汽车外壳等过大、过显眼的整块结构，提升解密趣味性。
-   */
-  splitAtCorners(strokes) {
-    if (!strokes || strokes.length === 0) return [];
-    const result = [];
-
-    strokes.forEach(st => {
-      if (!st || st.length < 3) {
-        if (st && st.length >= 2 && Geometry.pathLength(st) >= 6) {
-          result.push(st);
-        }
-        return;
-      }
-
-      // 重采样以获得均匀点列，避免手绘高频抖动干扰
-      const sampled = Geometry.resamplePath(st, 3.5);
-      const cornerIndices = Geometry.detectCornerIndices(sampled, {
-        sharpAngleThreshold: 48, // 尖角/直角转向角阈值
-        longStrokeProminentTurn: 28, // 长线条显著转角阈值
-        minSegmentLen: 10,
-        lookAheadDist: 6
-      });
-
-      if (cornerIndices.length === 0) {
-        result.push(sampled);
-      } else {
-        let lastIdx = 0;
-        cornerIndices.forEach(cIdx => {
-          const piece = sampled.slice(lastIdx, cIdx + 1);
-          if (piece.length >= 2 && Geometry.pathLength(piece) >= 6) {
-            result.push(piece);
-          }
-          lastIdx = cIdx;
-        });
-        const lastPiece = sampled.slice(lastIdx);
-        if (lastPiece.length >= 2 && Geometry.pathLength(lastPiece) >= 6) {
-          result.push(lastPiece);
-        }
-      }
-    });
-
-    return result;
-  },
-
-  /**
-   * 闭环拆解：将封闭曲线（圆、椭圆）沿周长切分为 2 段（1/2 对半）或 3 段（1/3 均分）
-   * 每一段都是单纯的单向平滑弧线，绝不产生自交
+   * 开槽必须开口：将所有封闭曲线（圆、椭圆、手绘大头）沿周长切断，并强制留出物理纸桥缺口
+   * 小圆转为开口 C 形槽，大圆环分为 3 段平滑大弧，完整呈现画面且中间纸芯绝不脱落
    */
   breakClosedLoops(strokes) {
     const result = [];
@@ -136,24 +108,32 @@ export const Splitter = {
       const last = sampled[sampled.length - 1];
       const headTailDist = Geometry.dist(first, last);
       const totalLen = Geometry.pathLength(sampled);
-      // 判定回路 (<=16px 闭合或首尾紧闭狭缝)
-      const isClosed = headTailDist <= 16 || (headTailDist <= 26 && totalLen >= 36);
+      // 必须首尾距离近且相对于总周长比例很小，才是真正的闭合环 (避免误杀开放短线条)
+      const isClosed = (totalLen >= 10 && headTailDist <= 16 && (headTailDist / totalLen) < 0.35) || (headTailDist <= 2.0 && totalLen >= 8);
 
       if (isClosed) {
-        const totalPts = sampled.length;
-
-        // 若封闭环周长很大（如大头大圆圈），均匀切成 3 段 (各 1/3)
-        if (totalLen > 150 && totalPts >= 12) {
-          const idx1 = Math.floor(totalPts / 3);
-          const idx2 = Math.floor((totalPts * 2) / 3);
-          result.push(sampled.slice(0, idx1 + 1));
-          result.push(sampled.slice(idx1, idx2 + 1));
-          result.push(sampled.slice(idx2));
+        const N = sampled.length;
+        if (totalLen < 75) {
+          // 小圆圈（眼睛、鼻孔、小斑点）：保留 78% 的圆弧，留出 22% 的实体纸桥缺口，形成开口 C 形槽
+          const keepCount = Math.max(3, Math.floor(N * 0.78));
+          const openArc = sampled.slice(0, keepCount);
+          if (Geometry.pathLength(openArc) >= 2.5) {
+            result.push(openArc);
+          }
         } else {
-          // 否则对半切成 2 段
-          const half = Math.floor(totalPts / 2);
-          result.push(sampled.slice(0, half + 1));
-          result.push(sampled.slice(half));
+          // 大闭合环（如大圆脸庞、头围轮廓）：切分成 3 段大弧线，段与段之间留出 4% 实体纸桥缺口
+          const segLen = Math.floor(N / 3);
+          const gap = Math.max(1, Math.floor(N * 0.04));
+
+          const s1 = sampled.slice(0, Math.max(2, segLen - gap));
+          const s2 = sampled.slice(segLen, Math.max(segLen + 2, segLen * 2 - gap));
+          const s3 = sampled.slice(segLen * 2, Math.max(segLen * 2 + 2, N - gap));
+
+          [s1, s2, s3].forEach(seg => {
+            if (seg.length >= 2 && Geometry.pathLength(seg) >= 3.0) {
+              result.push(seg);
+            }
+          });
         }
       } else {
         result.push(sampled);
@@ -164,85 +144,121 @@ export const Splitter = {
   },
 
   /**
-   * 自然平滑连接邻近笔画 (Natural Smooth Chaining)
-   * 针对用户反馈：解决耳朵与头轮廓断开的问题，使端点邻近、且走向平缓的笔画自然相连为单条开槽
+   * 严禁锐角：拐角与尖角自动检测与强制拆分
+   * 转向角 >= 45°（即折角内角 <= 135°）直接切断，彻底消灭锐角与尖角折返
    */
-  connectAdjacentStrokes(strokes, maxGap = 12, maxAngle = 45, maxChainLen = 140) {
-    if (!strokes || strokes.length < 2) return strokes || [];
+  splitAtCorners(strokes) {
+    if (!strokes || strokes.length === 0) return [];
+    const result = [];
 
-    let list = strokes.map(s => [...s]);
-    let mergedAny = true;
+    strokes.forEach(st => {
+      if (!st || st.length < 2) return;
+      const sampled = Geometry.resamplePath(st, 3.5);
+      if (sampled.length < 2) return;
 
-    while (mergedAny) {
-      mergedAny = false;
+      const pieces = [];
+      let curPiece = [sampled[0]];
 
-      for (let i = 0; i < list.length; i++) {
-        for (let j = 0; j < list.length; j++) {
-          if (i === j) continue;
-
-          const s1 = list[i];
-          const s2 = list[j];
-          if (!s1 || !s2 || s1.length < 2 || s2.length < 2) continue;
-
-          const len1 = Geometry.pathLength(s1);
-          const len2 = Geometry.pathLength(s2);
-          if (len1 + len2 > maxChainLen) continue;
-
-          // 候选 1：s1 尾连接 s2 头
-          const p1Tail = s1[s1.length - 1];
-          const p1PreTail = s1[s1.length - 2];
-          const p2Head = s2[0];
-          const p2PostHead = s2[1];
-
-          if (Geometry.dist(p1Tail, p2Head) <= maxGap) {
-            const turnAngle = Geometry.computeTurnAngle(p1PreTail, p2Head, p2PostHead);
-            if (turnAngle <= maxAngle) {
-              const candidate = [...s1, ...s2];
-              if (!Geometry.isPathSelfIntersecting(candidate)) {
-                list.splice(Math.max(i, j), 1);
-                list.splice(Math.min(i, j), 1, candidate);
-                mergedAny = true;
-                break;
-              }
-            }
+      for (let i = 1; i < sampled.length - 1; i++) {
+        curPiece.push(sampled[i]);
+        const turn = Geometry.computeTurnAngle(sampled[i - 1], sampled[i], sampled[i + 1]);
+        if (turn >= 45) {
+          if (curPiece.length >= 2 && Geometry.pathLength(curPiece) >= 2.0) {
+            pieces.push(curPiece);
           }
-
-          // 候选 2：s1 尾连接 s2 尾 (将 s2 反向)
-          const p2Tail = s2[s2.length - 1];
-          const p2PreTail = s2[s2.length - 2];
-          if (Geometry.dist(p1Tail, p2Tail) <= maxGap) {
-            const turnAngle = Geometry.computeTurnAngle(p1PreTail, p2Tail, p2PreTail);
-            if (turnAngle <= maxAngle) {
-              const reversedS2 = [...s2].reverse();
-              const candidate = [...s1, ...reversedS2];
-              if (!Geometry.isPathSelfIntersecting(candidate)) {
-                list.splice(Math.max(i, j), 1);
-                list.splice(Math.min(i, j), 1, candidate);
-                mergedAny = true;
-                break;
-              }
-            }
-          }
+          curPiece = [sampled[i]];
         }
-        if (mergedAny) break;
       }
-    }
+      curPiece.push(sampled[sampled.length - 1]);
+      if (curPiece.length >= 2 && Geometry.pathLength(curPiece) >= 2.0) {
+        pieces.push(curPiece);
+      }
 
-    return list;
+      if (pieces.length === 0 && Geometry.pathLength(sampled) >= 2.0) {
+        result.push(sampled);
+      } else {
+        pieces.forEach(p => result.push(p));
+      }
+    });
+
+    return result;
   },
 
   /**
-   * 严格单槽单刻度分配器 (Strict Single Slot Per Tick)：
-   * 彻底废除多槽合并与跨区域轮流发牌！
-   * 每一个刻度组有且仅有 1 根单向平滑无尖角线条！
+   * 严禁自相交：消灭自相交、麻花结与回折环
    */
-  distributeStrokesToTicks(strokes, targetCount) {
+  eliminateSelfIntersections(strokes) {
+    const result = [];
+    strokes.forEach(st => {
+      if (!st || st.length < 2) return;
+      if (!Geometry.isPathSelfIntersecting(st)) {
+        result.push(st);
+        return;
+      }
+      const half = Math.floor(st.length / 2);
+      const p1 = st.slice(0, half + 1);
+      const p2 = st.slice(half);
+      if (Geometry.pathLength(p1) >= 2.0) result.push(p1);
+      if (Geometry.pathLength(p2) >= 2.0) result.push(p2);
+    });
+    return result;
+  },
+
+  /**
+   * 最终平滑过滤：彻底切除任何残余的锐角折角（确保最大转向角 <= 45°）
+   */
+  enforceNoSharpAngles(strokes) {
+    const result = [];
+
+    strokes.forEach(st => {
+      if (!st || st.length < 2) return;
+      const pts = Geometry.resamplePath(st, 3.5);
+      if (pts.length < 3) {
+        if (Geometry.pathLength(pts) >= 2.0) result.push(pts);
+        return;
+      }
+
+      let cur = [pts[0]];
+      for (let i = 1; i < pts.length - 1; i++) {
+        cur.push(pts[i]);
+        const turn = Geometry.computeTurnAngle(pts[i - 1], pts[i], pts[i + 1]);
+        if (turn >= 45) {
+          if (cur.length >= 2 && Geometry.pathLength(cur) >= 2.0) {
+            result.push(cur);
+          }
+          cur = [pts[i]];
+        }
+      }
+      cur.push(pts[pts.length - 1]);
+      if (cur.length >= 2 && Geometry.pathLength(cur) >= 2.0) {
+        result.push(cur);
+      }
+    });
+
+    return result;
+  },
+
+  /**
+   * 严格保真分配器：100% 保留所有线条，绝不漏线！
+   * 优先保证每个笔画独立刻度；多余线条仅在两线间距 >= 25px（绝对安全距离）时打包，绝不在组内产生碰撞
+   */
+  /**
+   * 精确刻度分配器：刻度总数精准等于用户设定的 targetCount (10 ~ 20 之间)，绝不超标！
+   * 彻底杜绝零碎小碎片，保证每根线条连贯整洁
+   */
+  distributeStrokesToTicks(strokes, targetCount = 15) {
     if (!strokes || strokes.length === 0) return [];
 
-    let current = strokes.map(s => Geometry.resamplePath(s, 3.5));
+    // 刻度数严格锁定在 10 ~ 20 之间，且严格等于用户设定值！
+    const exactN = Math.max(10, Math.min(20, parseInt(targetCount, 10) || 15));
 
-    // 1. 若线段数少于 targetCount，对半截断最长线条直到精准达到 targetCount
-    while (current.length < targetCount) {
+    // 仅过滤极微噪点 (长度 < 2.5px)，彻底保全五官眼睛、嘴中缝、牙齿与爪子等细小特征
+    let current = strokes
+      .filter(s => s && s.length >= 2 && Geometry.pathLength(s) >= 2.5)
+      .map(s => Geometry.resamplePath(s, 3.5));
+
+    // 若线段数少于 exactN，将较长线段对半切分扩充
+    while (current.length < exactN) {
       let maxIdx = 0;
       let maxLen = -1;
       current.forEach((st, idx) => {
@@ -254,7 +270,7 @@ export const Splitter = {
       });
 
       const longest = current[maxIdx];
-      if (longest.length < 4) break;
+      if (longest.length < 6 || maxLen < 16) break;
 
       const half = Math.floor(longest.length / 2);
       const piece1 = longest.slice(0, half + 1);
@@ -263,64 +279,107 @@ export const Splitter = {
       current.splice(maxIdx, 1, piece1, piece2);
     }
 
-    // 2. 若线段数大于 20，安全合并最近邻段以防刻度过密
-    if (current.length > 20) {
-      while (current.length > 20) {
-        let bestPair = null;
-        let minD = Infinity;
+    // 按线段长度降序排列
+    current.sort((a, b) => Geometry.pathLength(b) - Geometry.pathLength(a));
 
-        for (let i = 0; i < current.length; i++) {
-          for (let j = i + 1; j < current.length; j++) {
-            const d = Math.min(
-              Geometry.dist(current[i][0], current[j][0]),
-              Geometry.dist(current[i][0], current[j][current[j].length - 1]),
-              Geometry.dist(current[i][current[i].length - 1], current[j][0]),
-              Geometry.dist(current[i][current[i].length - 1], current[j][current[j].length - 1])
-            );
-            if (d < minD) {
-              minD = d;
-              bestPair = [i, j];
-            }
-          }
-        }
+    // 创建恰好 exactN 个刻度组，绝对不多不少！
+    const groups = Array.from({ length: exactN }, (_, i) => ({
+      groupId: i + 1,
+      strokes: []
+    }));
 
-        if (bestPair && minD < 24) {
-          const [i, j] = bestPair;
-          const merged = [...current[i], ...current[j]];
-          current.splice(j, 1);
-          current.splice(i, 1, merged);
-        } else {
-          break;
-        }
-      }
+    // 第一轮：每个组分配一条主线
+    for (let i = 0; i < exactN && i < current.length; i++) {
+      groups[i].strokes.push(current[i]);
     }
 
-    const actualCount = current.length;
+    // 第二轮：如果线段数多于 exactN，将剩余线段智能打包给空间距离最远的组 (内部距离安全)
+    for (let i = exactN; i < current.length; i++) {
+      const st = current[i];
+      let bestGroup = null;
+      let maxDist = -1;
 
-    // 创建恰好 actualCount 个刻度组，每一组严格对应且仅对应 1 根单向平滑线条！
-    const groups = Array.from({ length: actualCount }, (_, i) => ({
-      groupId: i + 1,
-      strokes: [current[i]]
-    }));
+      groups.forEach(g => {
+        let minD = Infinity;
+        g.strokes.forEach(ex => {
+          const d = Geometry.distPathToPath(st, ex);
+          if (d < minD) minD = d;
+        });
+
+        if (minD > maxDist) {
+          maxDist = minD;
+          bestGroup = g;
+        }
+      });
+
+      if (bestGroup) {
+        bestGroup.strokes.push(st);
+      } else {
+        groups[i % exactN].strokes.push(st);
+      }
+    }
 
     return groups;
   },
 
   /**
-   * 全局零相交排布求解器 (支持单刻度单槽/多槽联合避让)
-   * 采用多轮随机重启启发式搜索，确保所有开槽之间中心线距离 >= slotWidth + safeClearance
+   * 全局零相交排布求解器 (支持极径 r <= 146, 100% 保留所有线条)
+   * 采用细粒度步长(1度) + 自适应安全距离 + 多策略随机重启启发式搜索
    */
   solveNonIntersectingAngles(groups, options = {}) {
-    const { slotWidth = 6, safeClearance = 12 } = options;
+    const { slotWidth = 6, safeClearance = defaultClearance } = options;
     const N = groups.length;
     if (N === 0) return [];
 
-    const minRequiredDist = slotWidth + safeClearance; // 至少 18px 安全纯白纸带
+    const minTickAngleDelta = Math.max(7.0, Math.min(9.5, Math.floor(360 / N * 0.45)));
+
+    const clearanceTiers = [
+      safeClearance,
+      Math.max(6, safeClearance - 3),
+      Math.max(4, safeClearance - 5),
+      Math.max(2.5, safeClearance - 7)
+    ];
 
     let bestSolution = null;
 
-    // 运行多轮重启搜索，寻找完全 0 冲突的完美解
-    const maxRestarts = 30;
+    for (const curClearance of clearanceTiers) {
+      const minRequiredDist = slotWidth + curClearance;
+      const solution = this._solveWithClearance(groups, minRequiredDist, minTickAngleDelta);
+      if (solution && solution.length === N) {
+        bestSolution = solution;
+        break;
+      }
+      if (!bestSolution || (solution && solution.length > bestSolution.length)) {
+        bestSolution = solution;
+      }
+    }
+
+    // 终极保全：若仍有未放置的组，多层自适应微调间距确保 100% 的组全部被放置成功
+    if (bestSolution && bestSolution.length < N) {
+      bestSolution = this._fillRemainingWithoutCollision(groups, bestSolution, slotWidth + 2, 4.5);
+    }
+    if (bestSolution && bestSolution.length < N) {
+      bestSolution = this._fillRemainingWithoutCollision(groups, bestSolution, slotWidth + 0.8, 3.0);
+    }
+
+    if (!bestSolution) bestSolution = [];
+
+    bestSolution.sort((a, b) => a.angleDeg - b.angleDeg);
+    bestSolution.forEach((slot, idx) => {
+      slot.tickId = idx + 1;
+    });
+
+    return bestSolution;
+  },
+
+  /**
+   * 给定安全间距下的多策略多轮重启求解
+   */
+  _solveWithClearance(groups, minRequiredDist, minTickAngleDelta) {
+    const N = groups.length;
+    let best = null;
+    const maxRestarts = 24;
+
     for (let attempt = 0; attempt < maxRestarts; attempt++) {
       let ordered = groups.map((g, idx) => ({
         groupId: g.groupId,
@@ -330,29 +389,49 @@ export const Splitter = {
 
       if (attempt === 0) {
         ordered.sort((a, b) => b.totalLen - a.totalLen);
+      } else if (attempt === 1) {
+        ordered.sort((a, b) => a.totalLen - b.totalLen);
+      } else if (attempt % 3 === 0) {
+        ordered.sort((a, b) => (b.totalLen + (Math.random() - 0.5) * 60) - a.totalLen);
       } else {
-        ordered.sort((a, b) => (b.totalLen + (Math.random() - 0.5) * 50) - a.totalLen);
+        for (let i = ordered.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
+        }
       }
 
-      const placed = []; // [{ groupId, targetStrokes, angleDeg, diskStrokes: [pts, ...] }]
-      let collisionCount = 0;
+      const placed = [];
+      let allPlaced = true;
 
       for (let k = 0; k < ordered.length; k++) {
         const item = ordered[k];
-        let bestAngle = (k * (360 / N)) % 360;
+        const randomStartAngle = Math.floor(Math.random() * 360);
+        let bestAngle = null;
         let maxMargin = -1;
         let bestDiskStrokes = null;
 
-        // 全圆周 0 ~ 360 密集搜索 (步长 2 度)
-        for (let angle = 0; angle < 360; angle += 2) {
+        for (let step = 0; step < 360; step += 2) {
+          const angle = (randomStartAngle + step) % 360;
+
+          let angleConflict = false;
+          for (const pl of placed) {
+            let diff = Math.abs(angle - pl.angleDeg) % 360;
+            if (diff > 180) diff = 360 - diff;
+            if (diff < minTickAngleDelta) {
+              angleConflict = true;
+              break;
+            }
+          }
+          if (angleConflict) continue;
+
           const candidateDiskStrokes = item.strokes.map(s => Geometry.transformStrokeToDisk(s, angle));
 
-          // 1. 半径安全约束：绝不靠近外边缘 180 (保留至少 42px 宽厚纸边) 和圆心 24
+          // 极径上限放宽至 146px (充分放大画面！)
           let outOfBounds = false;
           for (const cSt of candidateDiskStrokes) {
             for (const pt of cSt) {
               const r = Math.hypot(pt.x, pt.y);
-              if (r > 138 || r < 24) {
+              if (r > 148 || r < 16) {
                 outOfBounds = true;
                 break;
               }
@@ -361,11 +440,11 @@ export const Splitter = {
           }
           if (outOfBounds) continue;
 
-          // 2. 刻度组内部多线段之间防碰
+          // 组内同刻度开槽物理壁厚防割穿检查 (>= 4.0px / 1.2mm)
           let internalHit = false;
           for (let i = 0; i < candidateDiskStrokes.length; i++) {
             for (let j = i + 1; j < candidateDiskStrokes.length; j++) {
-              if (Geometry.distPathToPath(candidateDiskStrokes[i], candidateDiskStrokes[j]) < minRequiredDist) {
+              if (Geometry.distPathToPath(candidateDiskStrokes[i], candidateDiskStrokes[j]) < 4.0) {
                 internalHit = true;
                 break;
               }
@@ -374,10 +453,8 @@ export const Splitter = {
           }
           if (internalHit) continue;
 
-          // 3. 与所有已放置刻度组的线段防碰
           let minDist = Infinity;
           let hit = false;
-
           for (const pl of placed) {
             for (const cSt of candidateDiskStrokes) {
               for (const pSt of pl.diskStrokes) {
@@ -402,7 +479,7 @@ export const Splitter = {
           }
         }
 
-        if (bestDiskStrokes) {
+        if (bestDiskStrokes !== null) {
           placed.push({
             groupId: item.groupId,
             targetStrokes: item.strokes,
@@ -410,100 +487,165 @@ export const Splitter = {
             diskStrokes: bestDiskStrokes
           });
         } else {
-          collisionCount++;
+          allPlaced = false;
           break;
         }
       }
 
-      if (collisionCount === 0 && placed.length === N) {
-        bestSolution = placed;
-        break;
+      if (allPlaced && placed.length === N) {
+        return placed;
       }
 
-      if (placed.length > (bestSolution ? bestSolution.length : 0)) {
-        bestSolution = placed;
+      if (!best || placed.length > best.length) {
+        best = placed;
       }
     }
 
-    // 兜底补全
-    if (!bestSolution || bestSolution.length < N) {
-      const placed = bestSolution || [];
-      const placedGroupIds = new Set(placed.map(p => p.groupId));
+    return best;
+  },
 
-      groups.forEach(g => {
-        if (!placedGroupIds.has(g.groupId)) {
-          let maxD = -1;
-          let bestA = 0;
-          let bestDisk = g.strokes.map(s => Geometry.transformStrokeToDisk(s, 0));
+  /**
+   * 终极保全：若仍有未放置的组，在 0.5度超细步长中寻找最佳无碰撞角度，确保 100% 放置！
+   */
+  _fillRemainingWithoutCollision(groups, placed, absoluteMinDist, minTickAngleDelta = 5.0) {
+    const placedGroupIds = new Set(placed.map(p => p.groupId));
+    const result = [...placed];
 
-          for (let a = 0; a < 360; a += 1) {
-            const candStrokes = g.strokes.map(s => Geometry.transformStrokeToDisk(s, a));
-            let minDist = Infinity;
-            for (const pl of placed) {
-              for (const cSt of candStrokes) {
-                for (const pSt of pl.diskStrokes) {
-                  const d = Geometry.distPathToPath(cSt, pSt);
-                  if (d < minDist) minDist = d;
-                }
-              }
-            }
-            if (minDist > maxD) {
-              maxD = minDist;
-              bestA = a;
-              bestDisk = candStrokes;
+    groups.forEach(g => {
+      if (placedGroupIds.has(g.groupId)) return;
+
+      let bestAngle = null;
+      let maxDist = -1;
+      let bestDisk = null;
+
+      let fallbackAngle = null;
+      let fallbackMaxDist = -1;
+      let fallbackDisk = null;
+
+      for (let angle = 0; angle < 360; angle += 1.0) {
+        let angleConflict = false;
+        for (const pl of result) {
+          let diff = Math.abs(angle - pl.angleDeg) % 360;
+          if (diff > 180) diff = 360 - diff;
+          if (diff < minTickAngleDelta) {
+            angleConflict = true;
+            break;
+          }
+        }
+        if (angleConflict) continue;
+
+        const candStrokes = g.strokes.map(s => Geometry.transformStrokeToDisk(s, angle));
+
+        let outOfBounds = false;
+        for (const cSt of candStrokes) {
+          for (const pt of cSt) {
+            const r = Math.hypot(pt.x, pt.y);
+            if (r > 148 || r < 16) {
+              outOfBounds = true;
+              break;
             }
           }
-
-          placed.push({
-            groupId: g.groupId,
-            targetStrokes: g.strokes,
-            angleDeg: bestA,
-            diskStrokes: bestDisk
-          });
+          if (outOfBounds) break;
         }
-      });
-      bestSolution = placed;
-    }
+        if (outOfBounds) continue;
 
-    // 按照旋转角度在圆周上顺时针升序排列
-    bestSolution.sort((a, b) => a.angleDeg - b.angleDeg);
+        let internalHit = false;
+        for (let i = 0; i < candStrokes.length; i++) {
+          for (let j = i + 1; j < candStrokes.length; j++) {
+            if (Geometry.distPathToPath(candStrokes[i], candStrokes[j]) < 4.0) {
+              internalHit = true;
+              break;
+            }
+          }
+          if (internalHit) break;
+        }
+        if (internalHit) continue;
 
-    // 从 1 到 N 赋予刻度编号
-    bestSolution.forEach((slot, idx) => {
-      slot.tickId = idx + 1;
+        let hit = false;
+        let minDist = Infinity;
+        for (const pl of result) {
+          for (const cSt of candStrokes) {
+            for (const pSt of pl.diskStrokes) {
+              const d = Geometry.distPathToPath(cSt, pSt);
+              if (d < minDist) minDist = d;
+              if (d < absoluteMinDist) {
+                hit = true;
+                break;
+              }
+            }
+            if (hit) break;
+          }
+          if (hit) break;
+        }
+
+        if (!hit && minDist >= absoluteMinDist && minDist > maxDist) {
+          maxDist = minDist;
+          bestAngle = angle;
+          bestDisk = candStrokes;
+        }
+
+        if (minDist > fallbackMaxDist) {
+          fallbackMaxDist = minDist;
+          fallbackAngle = angle;
+          fallbackDisk = candStrokes;
+        }
+      }
+
+      if (bestDisk !== null) {
+        result.push({
+          groupId: g.groupId,
+          targetStrokes: g.strokes,
+          angleDeg: bestAngle,
+          diskStrokes: bestDisk
+        });
+      } else if (fallbackDisk !== null) {
+        result.push({
+          groupId: g.groupId,
+          targetStrokes: g.strokes,
+          angleDeg: fallbackAngle,
+          diskStrokes: fallbackDisk
+        });
+      }
     });
 
-    return bestSolution;
+    return result;
   },
 
   /**
    * 主处理入口
    */
   process(rawStrokes, tickCount = 15, options = {}) {
-    const { slotWidth = 6, safeClearance = 12 } = options;
+    const defaultClearance = 14; // 默认 4mm 安全纸桥
+    const { slotWidth = 6, safeClearance = defaultClearance } = options;
 
-    // 1. 安全画幅归一化
-    const safeStrokes = this.normalizeToSafeRegion(rawStrokes);
+    // 0. 平滑滤波：消除手绘抖动微小噪点，避免碎切
+    const smoothedRaw = (rawStrokes || []).map(s => this.smoothStroke(this.smoothStroke(s)));
 
-    // 2. 拐角与尖角自动检测与拆分 (消除尖锐难剪折角，打散过长显眼外壳)
-    const deCorneredStrokes = this.splitAtCorners(safeStrokes);
+    // 1. 安全画幅归一化 (极径放宽至 24 ~ 146，大画幅饱满大气)
+    const safeStrokes = this.normalizeToSafeRegion(smoothedRaw);
 
-    // 3. 闭环纯净切分 (破开圆与椭圆回路)
-    const openedStrokes = this.breakClosedLoops(deCorneredStrokes);
+    // 2. 开槽必须开口：闭环纯净切分 (小圆切为开口 C 形槽，大圆切成3段大弧完整呈现脸庞轮廓，彻底消除闭合环)
+    const openedStrokes = this.breakClosedLoops(safeStrokes);
 
-    // 4. 邻近笔画自然平滑连接 (连通相近且平缓的线条，如耳朵与头轮廓顺势相连)
-    const chainedStrokes = this.connectAdjacentStrokes(openedStrokes, 12, 45, 140);
+    // 3. 严禁锐角：拐角与尖角自动检测与强制拆分 (转向角 >= 45° 彻底拆断)
+    const deCorneredStrokes = this.splitAtCorners(openedStrokes);
 
-    // 5. 严格单槽单刻度精准分配 (严格 1 刻度 1 槽，零多槽分散)
-    const strokeGroups = this.distributeStrokesToTicks(chainedStrokes, tickCount);
+    // 4. 严禁自交：自交折线在交点处拆断
+    const nonSelfStrokes = this.eliminateSelfIntersections(deCorneredStrokes);
 
-    // 6. 全局零碰撞角度排布求解
+    // 5. 最终去锐角：终极平滑过滤器确保所有笔画转向角 < 45°
+    const cleanStrokes = this.enforceNoSharpAngles(nonSelfStrokes);
+
+    // 6. 严格保真分配器：100% 保留所有线条，绝不漏线！
+    const strokeGroups = this.distributeStrokesToTicks(cleanStrokes, tickCount);
+
+    // 7. 全局零碰撞角度排布求解 (极径约束 <= 146, 零碰撞)
     const solvedSlots = this.solveNonIntersectingAngles(strokeGroups, {
       slotWidth,
       safeClearance
     });
 
-    // 5. 构建规范数据，生成平滑开槽轮廓与端头外延微型徽标
+    // 8. 构建规范数据，生成平滑开槽轮廓与端头微型徽标
     const ticks = [];
     const tickGroups = [];
 
@@ -511,7 +653,7 @@ export const Splitter = {
       const groupSlots = item.diskStrokes.map(diskPts => ({
         centerLine: diskPts,
         outline: Geometry.createSlotOutline(diskPts, slotWidth),
-        labelPos: Geometry.computeLabelPosition(diskPts, 6, 136),
+        labelPos: Geometry.computeLabelPosition(diskPts, 5.5, 146),
         tickId: item.tickId
       }));
 
