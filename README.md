@@ -1,4 +1,4 @@
-﻿# DialDoodle 🎯 - 旋转解密绘图盘生成器
+# DialDoodle 🎯 - 旋转解密绘图盘生成器
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Pure Vanilla JS](https://img.shields.io/badge/Vanilla-ES6+-yellow.svg)]()
@@ -61,8 +61,8 @@
 ### 2. GitHub Pages 一键在线访问
 本项目为纯静态前端，可直接部署在 GitHub Pages：
 1. 进入 GitHub 仓库设置 `Settings` -> `Pages`；
-2. 在 `Build and deployment` 分支选择 `main` (或 `master`)，目录选择 `/ (root)`；
-3. 保存后即可通过 `https://<your-username>.github.io/DialDoodle` 在线体验！
+2. 在 `Build and deployment` 分支选择 `main`，目录选择 `/ (root)`；
+3. 保存后即可通过：[https://funekaa.github.io/DialDoodle/](https://funekaa.github.io/DialDoodle/) 在线体验！
 
 ---
 
