@@ -1,10 +1,10 @@
-# DialDoodle 🎯 - 旋转解密绘图盘生成器
+# DialDoodle 🎯 - 转盘画 (旋转解密绘图生成器)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Pure Vanilla JS](https://img.shields.io/badge/Vanilla-ES6+-yellow.svg)]()
 [![Platform: Web / MiniProgram](https://img.shields.io/badge/Platform-Web%20%7C%20WeChat-green.svg)]()
 
-> **DialDoodle**（旋转涂鸦盘）是一个基于**极坐标几何逆变换**的益智解密绘图玩具生成程序。
+> **DialDoodle（转盘画）** 是一个基于**极坐标几何逆变换**的趣味益智绘图玩具生成程序。
 > 用户提供或选择简笔画后，算法将其线条打散加密逆转分布在旋转圆盘（**B 纸**）上。
 > 将 B 纸用图钉固定在底层的 **A 纸** 上旋转，对齐每个刻度描线，最后移开 B 纸，A 纸上就会奇迹般揭晓出原本完全看不出来的完整图案！
 
