@@ -1,0 +1,26 @@
+﻿# Operating System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs & Temporary Files
+*.log
+*.tmp
+*.bak
+*_debug.txt
+*_dom.txt
+*_err.txt
+
+# Editor & IDE Directories
+.vscode/
+.idea/
+
+# Python cache & virtual environments
+__pycache__/
+*.pyc
+env/
+venv/
+
+# Antigravity Cache
+.gemini/
+.system_generated/

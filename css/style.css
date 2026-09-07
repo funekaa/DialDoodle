@@ -1,0 +1,608 @@
+/* 全局基础与重置 */
+:root {
+  --primary: #3B82F6;
+  --primary-hover: #2563EB;
+  --primary-light: #EFF6FF;
+  --success: #10B981;
+  --accent: #F59E0B;
+  --danger: #EF4444;
+  --bg-main: #F8FAFC;
+  --bg-card: #FFFFFF;
+  --border-color: #E2E8F0;
+  --text-main: #0F172A;
+  --text-muted: #64748B;
+  --radius-lg: 16px;
+  --radius-md: 10px;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 顶部导航栏 */
+.header {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-icon {
+  width: 38px;
+  height: 38px;
+  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 20px;
+}
+
+.logo-text h1 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.logo-text p {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* 主体容器 */
+.app-container {
+  max-width: 1440px;
+  margin: 20px auto;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: 360px 1fr 340px;
+  gap: 20px;
+}
+
+@media (max-width: 1200px) {
+  .app-container {
+    grid-template-columns: 340px 1fr;
+  }
+  .panel-export {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 860px) {
+  .app-container {
+    grid-template-columns: 1fr;
+  }
+  .panel-export {
+    grid-column: span 1;
+  }
+}
+
+/* 卡片通用样式 */
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title .badge {
+  font-size: 11px;
+  background: var(--primary-light);
+  color: var(--primary);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+/* Tab 切换 */
+.tab-header {
+  display: flex;
+  background: #F1F5F9;
+  padding: 4px;
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  gap: 4px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.tab-btn.active {
+  background: #FFFFFF;
+  color: var(--text-main);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 预设网格 */
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.preset-card {
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  cursor: pointer;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s;
+  background: #FAFAFA;
+}
+
+.preset-card:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.preset-card.active {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  color: var(--primary-hover);
+}
+
+/* 涂鸦板容器 */
+.doodle-container {
+  text-align: center;
+}
+
+#doodleCanvas {
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  background: #FFFFFF;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.doodle-tools {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* 上传框 */
+.upload-dropzone {
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 24px 16px;
+  text-align: center;
+  cursor: pointer;
+  background: #FAFAFA;
+  transition: all 0.2s;
+}
+
+.upload-dropzone:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+/* 参数控制器 */
+.control-group {
+  margin-bottom: 16px;
+}
+
+.control-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.control-label .val-tag {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.radio-group {
+  display: flex;
+  gap: 8px;
+}
+
+.radio-pill {
+  flex: 1;
+  border: 1px solid var(--border-color);
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  background: #FAFAFA;
+}
+
+.radio-pill.active {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* 中间模拟器区域 */
+.simulator-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.simulator-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+
+.simulator-canvas-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 560px;
+  user-select: none;
+  margin-bottom: 16px;
+}
+
+#simCanvas {
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+  aspect-ratio: 560 / 540;
+  border-radius: var(--radius-md);
+  cursor: grab;
+  touch-action: none;
+  background: #F8FAFC;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
+}
+
+#simCanvas:active {
+  cursor: grabbing;
+}
+
+/* 提示气泡 */
+.drag-hint {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 模拟器控制栏 */
+.simulator-status-bar {
+  width: 100%;
+  background: #F1F5F9;
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.status-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #94A3B8;
+}
+
+.status-indicator.aligned {
+  background: var(--danger);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.7);
+  animation: pulse 1.2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.status-text {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.status-right {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* 按钮组 */
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+  justify-content: center;
+}
+
+.btn {
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn-outline {
+  background: #fff;
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+
+.btn-outline:hover {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+}
+
+.btn-success {
+  background: var(--success);
+  color: #fff;
+}
+
+.btn-success:hover {
+  background: #059669;
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+/* 刻度进度点 */
+.tick-pills-scroll {
+  width: 100%;
+  overflow-x: auto;
+  display: flex;
+  gap: 6px;
+  padding: 8px 2px;
+}
+
+.tick-pill {
+  min-width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid var(--border-color);
+  background: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.tick-pill:hover {
+  border-color: var(--primary);
+}
+
+.tick-pill.aligned {
+  border-color: var(--danger);
+  color: var(--danger);
+  font-weight: 800;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+.tick-pill.completed {
+  background: #D1FAE5;
+  border-color: var(--success);
+  color: #065F46;
+}
+
+/* 打印与导出面板 */
+.preview-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.preview-box {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  background: #FAFAFA;
+  text-align: center;
+}
+
+.preview-box h4 {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.preview-box canvas {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+  background: #fff;
+}
+
+.instructions-list {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-top: 10px;
+  padding-left: 18px;
+}
+
+.instructions-list li {
+  margin-bottom: 4px;
+}
+
+/* 打印媒体样式：关键！实现直接 A4 分页打印 */
+@media print {
+  body {
+    background: #fff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .header,
+  .panel-control,
+  .simulator-section,
+  .header-actions,
+  .btn,
+  .instructions-card {
+    display: none !important;
+  }
+
+  .app-container {
+    display: block !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .panel-export {
+    display: block !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+
+  .card {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .print-page {
+    page-break-after: always !important;
+    break-after: page !important;
+    width: 100% !important;
+    height: 100vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+
+  .preview-box {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .preview-box h4,
+  .preview-box .btn {
+    display: none !important;
+  }
+
+  .preview-box canvas {
+    max-width: 96% !important;
+    max-height: 96vh !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+}

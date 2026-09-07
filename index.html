@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DialDoodle - 神奇旋转解密绘图盘生成器</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- 顶部导航 -->
+  <header class="header">
+    <div class="logo-area">
+      <div class="logo-icon">🎯</div>
+      <div class="logo-text">
+        <h1>DialDoodle 旋转解密绘图盘</h1>
+        <p>打散简笔画 · 旋转开槽描线 · A/B 纸几何解密</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" id="btnHowToPlay">💡 玩法说明</button>
+      <button class="btn btn-primary" id="btnQuickPrint">🖨️ 打印 A4 图纸</button>
+    </div>
+  </header>
+
+  <!-- 主体工作区 -->
+  <main class="app-container">
+
+    <!-- 左侧：参数与图案输入面板 -->
+    <aside class="panel-control">
+      
+      <!-- 步骤 1: 图案选择 -->
+      <section class="card">
+        <h3 class="card-title">
+          <span>1. 选择或绘制简笔画</span>
+          <span class="badge">图案来源</span>
+        </h3>
+
+        <!-- Tab 切换 -->
+        <div class="tab-header">
+          <button class="tab-btn active" data-tab="preset">经典预设</button>
+          <button class="tab-btn" data-tab="doodle">随手涂鸦</button>
+          <button class="tab-btn" data-tab="upload">上传线稿</button>
+        </div>
+
+        <!-- 预设选择区 -->
+        <div class="tab-content" id="tab-preset">
+          <div class="preset-grid" id="presetContainer">
+            <!-- 由 JS 动态渲染预设列表 -->
+          </div>
+        </div>
+
+        <!-- 涂鸦画板区 -->
+        <div class="tab-content" id="tab-doodle" style="display: none;">
+          <div class="doodle-container">
+            <canvas id="doodleCanvas" width="280" height="200"></canvas>
+            <div class="doodle-tools">
+              <button class="btn btn-outline btn-sm" id="btnClearDoodle">清空白板</button>
+              <button class="btn btn-primary btn-sm" id="btnApplyDoodle">生成此涂鸦</button>
+            </div>
+            <p style="font-size: 11px; color: #94A3B8; margin-top: 6px;">请在白色区域内随手画一个简笔画</p>
+          </div>
+        </div>
+
+        <!-- 上传图片区 -->
+        <div class="tab-content" id="tab-upload" style="display: none;">
+          <div class="upload-dropzone" id="dropzone">
+            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+            <div style="font-size: 28px; margin-bottom: 6px;">📁</div>
+            <p style="font-size: 13px; font-weight: 600;">点击或拖拽简笔画图片到此处</p>
+            <p style="font-size: 11px; color: #94A3B8; margin-top: 4px;">建议上传清晰的白底黑色线条简笔画</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 步骤 2: 刻度与转盘参数 -->
+      <section class="card">
+        <h3 class="card-title">
+          <span>2. 转盘几何打散配置</span>
+          <span class="badge">算法参数</span>
+        </h3>
+
+        <!-- 刻度数量 (10 到 20 之间精准可调) -->
+        <div class="control-group">
+          <div class="control-label">
+            <span>刻度总数 (N)</span>
+            <span class="val-tag" id="tickCountVal">12 个刻度</span>
+          </div>
+          <input type="range" id="tickCountRange" min="10" max="20" step="1" value="12">
+        </div>
+
+        <!-- 开槽安全间隔 (利用刻度不均匀控制) -->
+        <div class="control-group">
+          <div class="control-label">
+            <span>开槽防相交安全间隔</span>
+            <span class="val-tag" id="clearanceVal">标准 (12px / 3.5mm)</span>
+          </div>
+          <input type="range" id="clearanceRange" min="8" max="22" step="1" value="12">
+          <p style="font-size: 11px; color: #64748B; margin-top: 4px;">
+            自动计算非均匀刻度角，确保所有开槽绝对不相交接触并保留安全纸桥
+          </p>
+        </div>
+
+        <!-- 开槽宽度 -->
+        <div class="control-group">
+          <div class="control-label">
+            <span>开槽宽度 (镂空缝隙)</span>
+            <span class="val-tag" id="slotWidthVal">适中 (3mm)</span>
+          </div>
+          <input type="range" id="slotWidthRange" min="2" max="10" step="1" value="6">
+        </div>
+
+        <!-- 画笔颜色 -->
+        <div class="control-group">
+          <div class="control-label">
+            <span>模拟彩笔颜色</span>
+          </div>
+          <div class="radio-group" id="penColorGroup">
+            <div class="radio-pill active" data-color="#2563EB" style="color: #2563EB;">宝蓝色</div>
+            <div class="radio-pill" data-color="#DC2626" style="color: #DC2626;">朱红色</div>
+            <div class="radio-pill" data-color="#059669" style="color: #059669;">翡翠绿</div>
+            <div class="radio-pill" data-color="#334155" style="color: #334155;">铅笔灰</div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="btnRegenerate" style="width: 100%;">
+          🔄 重新计算非均匀防交叉排布
+        </button>
+      </section>
+
+      <!-- 玩法说明卡片 -->
+      <section class="card instructions-card">
+        <h3 class="card-title">📖 升级特性与玩法</h3>
+        <ul class="instructions-list">
+          <li><strong>单槽连续一笔画</strong>：每个刻度刚好对应一条连续开槽，一笔描到底，不再断开为碎片。</li>
+          <li><strong>开槽旁标注刻度号</strong>：每个开槽外侧清晰标注圆形刻度数字 ➊ ➋ ...，轻松认准当前该画哪条槽。</li>
+          <li><strong>刻度非均匀防交叉</strong>：算法自动优化各个刻度的旋转角度，使所有开槽错开，互不交叉碰撞并保留足够镂期间隔。</li>
+          <li><strong>最终惊喜揭秘</strong>：所有刻度画完移开 B 纸，A 纸上就会精准呈现出完整作品！</li>
+        </ul>
+      </section>
+
+    </aside>
+
+    <!-- 中间：互动解密模拟器 -->
+    <section class="simulator-section">
+      <div class="simulator-card">
+        
+        <!-- 状态栏 -->
+        <div class="simulator-status-bar">
+          <div class="status-left">
+            <div class="status-indicator" id="statusIndicator"></div>
+            <div class="status-text" id="statusText">正在初始化...</div>
+          </div>
+          <div class="status-right" id="statusProgress">
+            完成进度: 0 / 15
+          </div>
+        </div>
+
+        <!-- 模拟器画布容器 -->
+        <div class="simulator-canvas-wrapper">
+          <canvas id="simCanvas" width="560" height="540"></canvas>
+          <div class="drag-hint">
+            <span>👆 鼠标或手指拖动圆盘旋转</span>
+          </div>
+        </div>
+
+        <!-- 刻度快速导航指示胶囊 -->
+        <div class="tick-pills-scroll" id="tickPillsContainer">
+          <!-- 由 JS 渲染刻度胶囊 -->
+        </div>
+
+        <!-- 模拟操作按钮群 -->
+        <div class="btn-row" style="margin-top: 14px;">
+          <button class="btn btn-outline" id="btnPrevTick" title="转到上一个刻度">⏮️ 上一刻度</button>
+          <button class="btn btn-primary" id="btnDrawStroke">✏️ 在当前开槽画线</button>
+          <button class="btn btn-outline" id="btnNextTick" title="转到下一个刻度">下一刻度 ⏭️</button>
+          <button class="btn btn-success" id="btnAutoPlay">▶️ 自动解密演示</button>
+          <button class="btn btn-outline" id="btnToggleBPaper">👁️ 移开/盖上 B 纸</button>
+          <button class="btn btn-outline" id="btnClearSim" title="清空画纸">🧹 清空</button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 右侧：图纸生成与打印导出 -->
+    <aside class="panel-export">
+      <div class="card">
+        <h3 class="card-title">
+          <span>3. 打印与图纸导出</span>
+          <span class="badge">A4 规范</span>
+        </h3>
+
+        <div class="preview-cards">
+          
+          <!-- B 纸预览卡片 (打印第一页) -->
+          <div class="preview-box print-page" id="bPaperBox">
+            <h4>
+              <span>📄 B 纸 (圆形转盘画纸)</span>
+              <button class="btn btn-outline btn-sm" id="btnDownloadB">下载 PNG</button>
+            </h4>
+            <canvas id="bPaperCanvas"></canvas>
+            <p style="font-size: 11px; color: #64748B; margin-top: 6px;">打印后剪下外圆并在开槽处镂空</p>
+          </div>
+
+          <!-- A 纸预览卡片 (打印第二页) -->
+          <div class="preview-box print-page" id="aPaperBox">
+            <h4>
+              <span>📋 A 纸 (底部基准画纸)</span>
+              <button class="btn btn-outline btn-sm" id="btnDownloadA">下载 PNG</button>
+            </h4>
+            <canvas id="aPaperCanvas"></canvas>
+            <p style="font-size: 11px; color: #64748B; margin-top: 6px;">带正上方指示线与圆心图钉固定孔</p>
+          </div>
+
+        </div>
+
+        <!-- 一键打印大按钮 -->
+        <div style="margin-top: 18px;">
+          <button class="btn btn-primary" id="btnPrintAll" style="width: 100%; padding: 12px; font-size: 14px;">
+            🖨️ 浏览器一键直接打印 (A4 双页)
+          </button>
+          <p style="font-size: 11px; color: #94A3B8; text-align: center; margin-top: 6px;">
+            自动分页：第 1 页为 B 纸，第 2 页为 A 纸
+          </p>
+        </div>
+
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- 引入主应用脚本 -->
+  <script type="module" src="js/app.js"></script>
+
+</body>
+</html>
