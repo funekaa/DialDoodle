@@ -109,6 +109,99 @@ export const Geometry = {
   },
 
   /**
+   * 计算三点组成的折线在中间点处的转向角 (Deflection Turn Angle，单位：度)
+   * 0度表示顺直前进，90度表示直角转弯，>90度表示尖角/锐角折返
+   */
+  computeTurnAngle(pPrev, pCurr, pNext) {
+    const v1x = pCurr.x - pPrev.x;
+    const v1y = pCurr.y - pPrev.y;
+    const v2x = pNext.x - pCurr.x;
+    const v2y = pNext.y - pCurr.y;
+    const l1 = Math.hypot(v1x, v1y);
+    const l2 = Math.hypot(v2x, v2y);
+    if (l1 < 1e-4 || l2 < 1e-4) return 0;
+
+    const dot = v1x * v2x + v1y * v2y;
+    const cosVal = Math.max(-1, Math.min(1, dot / (l1 * l2)));
+    return (Math.acos(cosVal) * 180) / Math.PI;
+  },
+
+  /**
+   * 检测折线中的拐角/尖角索引 (用于将尖角、急弯和显著外壳转角打断拆分)
+   * @param {Array} points 折线点序列
+   * @param {Object} options 阈值配置
+   */
+  detectCornerIndices(points, options = {}) {
+    if (!points || points.length < 3) return [];
+    const {
+      sharpAngleThreshold = 52, // 尖角/直角判定阈值 (转向角 >= 52度，内角 <= 128度，防止卡刀与难裁剪)
+      longStrokeProminentTurn = 32, // 长线条显著转角判定 (转向角 >= 32度，打散大外壳)
+      minSegmentLen = 10, // 拆分后单段最小长度
+      lookAheadDist = 6 // 计算切线时的跨度距离 (px)
+    } = options;
+
+    const totalLen = this.pathLength(points);
+    const N = points.length;
+
+    // 计算每个点沿折线的累积弧长
+    const cumDist = [0];
+    for (let i = 1; i < N; i++) {
+      cumDist.push(cumDist[i - 1] + this.dist(points[i - 1], points[i]));
+    }
+
+    const angles = new Array(N).fill(0);
+
+    for (let i = 1; i < N - 1; i++) {
+      const dCurr = cumDist[i];
+      // 向前找距离 >= lookAheadDist 的点
+      let prevIdx = i - 1;
+      while (prevIdx > 0 && dCurr - cumDist[prevIdx] < lookAheadDist) {
+        prevIdx--;
+      }
+      // 向后找距离 >= lookAheadDist 的点
+      let nextIdx = i + 1;
+      while (nextIdx < N - 1 && cumDist[nextIdx] - dCurr < lookAheadDist) {
+        nextIdx++;
+      }
+
+      angles[i] = this.computeTurnAngle(points[prevIdx], points[i], points[nextIdx]);
+    }
+
+    // 寻找局部极大值峰值，并筛选超过阈值的拐点
+    const rawCorners = [];
+    const activeThreshold = totalLen > 40 ? Math.min(sharpAngleThreshold, longStrokeProminentTurn) : sharpAngleThreshold;
+
+    for (let i = 1; i < N - 1; i++) {
+      const angle = angles[i];
+      if (angle >= activeThreshold) {
+        // 判断是否为局部峰值 (周围 1~2 点内不小于相邻点)
+        const isPeak = angle >= angles[i - 1] && angle >= angles[i + 1];
+        if (isPeak) {
+          rawCorners.push({ idx: i, angle, d: cumDist[i] });
+        }
+      }
+    }
+
+    // 过滤掉距离端点太近或相邻太近的拐点，保留最显著的拐点
+    const validCorners = [];
+    rawCorners.sort((a, b) => b.angle - a.angle); // 按转折锐度从大到小优先选取
+
+    rawCorners.forEach(c => {
+      // 距离两端距离必须 >= minSegmentLen
+      if (c.d < minSegmentLen || totalLen - c.d < minSegmentLen) return;
+      // 与已选拐点的距离必须 >= minSegmentLen
+      const tooClose = validCorners.some(vc => Math.abs(vc.d - c.d) < minSegmentLen);
+      if (!tooClose) {
+        validCorners.push(c);
+      }
+    });
+
+    // 按在折线中的位置从小到大排序返回索引
+    validCorners.sort((a, b) => a.idx - b.idx);
+    return validCorners.map(c => c.idx);
+  },
+
+  /**
    * 根据线条路径生成具有开槽宽度（槽宽 slotWidth，如 3mm）的轮廓多边形，
    * 用于制作可镂空的胶囊条形开槽轮廓
    */
