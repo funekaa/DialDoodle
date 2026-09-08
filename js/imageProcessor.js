@@ -130,18 +130,20 @@ export const ImageProcessor = {
           if (count >= 15 && count <= 1800 && compW >= 4 && compW <= 60 && compH >= 4 && compH <= 60 && ratio >= 0.35 && ratio <= 2.8) {
             const eyeCx = (minX + maxX) / 2;
             const eyeCy = (minY + maxY) / 2;
-            const rx = Math.max(3.0, compW / 2);
-            const ry = Math.max(3.0, compH / 2);
+            const r = Math.max(6.5, Math.min(8.5, Math.max(compW, compH) / 4 + 2.0));
 
-            // 生成眼睛圆圈/椭圆笔画 (16 点圆周)，后续自然转为开口 C 形槽，完美保留生动圆眼睛！
+            // 生成眼睛独立实心大圆孔 (支持打孔器打孔)
             const eyeStroke = [];
-            for (let deg = 0; deg < 360; deg += 22.5) {
+            for (let deg = 0; deg < 360; deg += 18) {
               const rad = (deg * Math.PI) / 180;
               eyeStroke.push({
-                x: eyeCx + rx * Math.cos(rad),
-                y: eyeCy + ry * Math.sin(rad)
+                x: eyeCx + r * Math.cos(rad),
+                y: eyeCy + r * Math.sin(rad)
               });
             }
+            eyeStroke.isHole = true;
+            eyeStroke.center = { x: eyeCx, y: eyeCy };
+            eyeStroke.radius = r;
             rawStrokes.push(eyeStroke);
 
             // 从二值图中清除该实心眼球，避免骨架化算法产生孤立碎屑
@@ -262,6 +264,17 @@ export const ImageProcessor = {
         x: bounds.cx + (pt.x - srcCenterX) * scale,
         y: bounds.cy + (pt.y - srcCenterY) * scale
       }));
+      if (stroke.isHole) {
+        mapped.isHole = true;
+        if (stroke.radius) mapped.radius = stroke.radius * scale;
+        if (stroke.center) {
+          mapped.center = {
+            x: bounds.cx + (stroke.center.x - srcCenterX) * scale,
+            y: bounds.cy + (stroke.center.y - srcCenterY) * scale
+          };
+        }
+        return mapped;
+      }
       return Geometry.resamplePath(mapped, 3.5);
     });
 

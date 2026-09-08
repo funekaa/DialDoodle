@@ -53,7 +53,15 @@ export const Geometry = {
    * = (x_A, y_A)！完全吻合目标位置！
    */
   transformStrokeToDisk(strokePoints, tickAngleDeg, origin = { x: 0, y: 0 }) {
-    return strokePoints.map(pt => this.rotatePoint(pt.x, pt.y, tickAngleDeg, origin.x, origin.y));
+    const res = strokePoints.map(pt => this.rotatePoint(pt.x, pt.y, tickAngleDeg, origin.x, origin.y));
+    if (strokePoints.isHole) {
+      res.isHole = true;
+      res.radius = strokePoints.radius;
+      if (strokePoints.center) {
+        res.center = this.rotatePoint(strokePoints.center.x, strokePoints.center.y, tickAngleDeg, origin.x, origin.y);
+      }
+    }
+    return res;
   },
 
   /**
@@ -427,5 +435,21 @@ export const Geometry = {
     const r = Math.hypot(fallback.x, fallback.y) || 1;
     const clampedR = Math.max(26, Math.min(maxRadius, r));
     return { x: (fallback.x / r) * clampedR, y: (fallback.y / r) * clampedR };
+  },
+
+  /**
+   * 计算圆形开孔旁边的刻度编号微型徽章位置 (紧贴圆孔外沿，绝不压孔)
+   */
+  computeHoleLabelPosition(center, radius, offset = 5.5, maxRadius = 146) {
+    const angle = Math.atan2(center.y, center.x);
+    const dist = radius + offset + 4.5;
+    let lx = center.x + Math.cos(angle) * dist;
+    let ly = center.y + Math.sin(angle) * dist;
+    const r = Math.hypot(lx, ly);
+    if (r > maxRadius) {
+      lx = center.x - Math.cos(angle) * dist;
+      ly = center.y - Math.sin(angle) * dist;
+    }
+    return { x: lx, y: ly };
   }
 };

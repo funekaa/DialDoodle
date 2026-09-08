@@ -29,6 +29,71 @@ export const Splitter = {
   },
 
   /**
+   * 判断线条是否属于紧凑型眼睛/圆孔特征
+   */
+  isCompactHole(stroke) {
+    if (!stroke || stroke.length < 3) return false;
+    if (stroke.isHole) return true;
+
+    const first = stroke[0];
+    const last = stroke[stroke.length - 1];
+    const headTailDist = Geometry.dist(first, last);
+    const totalLen = Geometry.pathLength(stroke);
+
+    const isClosed = (totalLen >= 6 && headTailDist <= 16 && (headTailDist / totalLen) < 0.35) || (headTailDist <= 2.5 && totalLen >= 5);
+    if (!isClosed) return false;
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    stroke.forEach(pt => {
+      if (pt.x < minX) minX = pt.x;
+      if (pt.x > maxX) maxX = pt.x;
+      if (pt.y < minY) minY = pt.y;
+      if (pt.y > maxY) maxY = pt.y;
+    });
+    const w = maxX - minX;
+    const h = maxY - minY;
+
+    return (w <= 24 && h <= 24 && totalLen <= 70 && totalLen >= 6);
+  },
+
+  /**
+   * 生成舒适放大的眼睛开孔对象 (A4 标准 6~7.5mm 圆孔，直接使用打孔器或笔尖开孔)
+   */
+  createHoleStroke(stroke) {
+    let sumX = 0, sumY = 0;
+    stroke.forEach(p => { sumX += p.x; sumY += p.y; });
+    const cx = sumX / stroke.length;
+    const cy = sumY / stroke.length;
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    stroke.forEach(p => {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    });
+    const w = maxX - minX;
+    const h = maxY - minY;
+
+    // 眼睛开大一点：半径至少 6.5px (对应 A4 上约 6.0~7.5mm，完全契合标准单孔打孔器规格)
+    const holeR = Math.max(6.5, Math.min(8.5, Math.max(w, h) / 2 + 1.2));
+
+    const circlePts = [];
+    const segs = 24;
+    for (let i = 0; i <= segs; i++) {
+      const a = (i * 2 * Math.PI) / segs;
+      circlePts.push({
+        x: cx + holeR * Math.cos(a),
+        y: cy + holeR * Math.sin(a)
+      });
+    }
+    circlePts.isHole = true;
+    circlePts.center = { x: cx, y: cy };
+    circlePts.radius = holeR;
+    return circlePts;
+  },
+
+  /**
    * 大画幅安全范围归一化：将图形缩放并居中至饱满大气的环形画幅内
    * 极径放宽至 24 ~ 146px，充分利用大纸盘空间，距离外裁切边 180 仍留出 34px 安全距离
    */
@@ -55,12 +120,23 @@ export const Splitter = {
     const centerSourceY = (minY + maxY) / 2;
     const centerTargetY = -82;
 
-    let strokes = rawStrokes.map(st =>
-      st.map(pt => ({
+    let strokes = rawStrokes.map(st => {
+      const res = st.map(pt => ({
         x: pt.x * scale,
         y: centerTargetY + (pt.y - centerSourceY) * scale
-      }))
-    );
+      }));
+      if (st.isHole) {
+        res.isHole = true;
+        if (st.radius) res.radius = st.radius * scale;
+        if (st.center) {
+          res.center = {
+            x: st.center.x * scale,
+            y: centerTargetY + (st.center.y - centerSourceY) * scale
+          };
+        }
+      }
+      return res;
+    });
 
     // 严密二次微调：确保所有点到圆心距离严格在 24 ~ 146 之间
     let minR = Infinity, maxR = 0;
@@ -74,7 +150,15 @@ export const Splitter = {
 
     if (minR < 24) {
       const shiftUp = 25 - minR;
-      strokes = strokes.map(st => st.map(pt => ({ x: pt.x, y: pt.y - shiftUp })));
+      strokes = strokes.map(st => {
+        const res = st.map(pt => ({ x: pt.x, y: pt.y - shiftUp }));
+        if (st.isHole) {
+          res.isHole = true;
+          res.radius = st.radius;
+          if (st.center) res.center = { x: st.center.x, y: st.center.y - shiftUp };
+        }
+        return res;
+      });
     }
 
     maxR = 0;
@@ -86,7 +170,15 @@ export const Splitter = {
     });
     if (maxR > 146) {
       const factor = 146 / maxR;
-      strokes = strokes.map(st => st.map(pt => ({ x: pt.x * factor, y: pt.y * factor })));
+      strokes = strokes.map(st => {
+        const res = st.map(pt => ({ x: pt.x * factor, y: pt.y * factor }));
+        if (st.isHole) {
+          res.isHole = true;
+          if (st.radius) res.radius = st.radius * factor;
+          if (st.center) res.center = { x: st.center.x * factor, y: st.center.y * factor };
+        }
+        return res;
+      });
     }
 
     return strokes;
@@ -94,13 +186,21 @@ export const Splitter = {
 
   /**
    * 开槽必须开口：将所有封闭曲线（圆、椭圆、手绘大头）沿周长切断，并强制留出物理纸桥缺口
-   * 小圆转为开口 C 形槽，大圆环分为 3 段平滑大弧，完整呈现画面且中间纸芯绝不脱落
+   * 眼睛/圆孔保留为独立打孔圆，大圆环分为 3 段平滑大弧，完整呈现画面且中间纸芯绝不脱落
    */
   breakClosedLoops(strokes) {
     const result = [];
 
     strokes.forEach(st => {
       if (!st || st.length < 2) return;
+
+      // 1. 眼睛/紧凑型圆孔判定：直接保留为完整独立圆孔，开大一点便于打孔！
+      if (this.isCompactHole(st)) {
+        const hole = this.createHoleStroke(st);
+        result.push(hole);
+        return;
+      }
+
       const sampled = Geometry.resamplePath(st, 3.5);
       if (sampled.length < 2) return;
 
@@ -153,6 +253,10 @@ export const Splitter = {
 
     strokes.forEach(st => {
       if (!st || st.length < 2) return;
+      if (st.isHole) {
+        result.push(st);
+        return;
+      }
       const sampled = Geometry.resamplePath(st, 3.5);
       if (sampled.length < 2) return;
 
@@ -191,6 +295,10 @@ export const Splitter = {
     const result = [];
     strokes.forEach(st => {
       if (!st || st.length < 2) return;
+      if (st.isHole) {
+        result.push(st);
+        return;
+      }
       if (!Geometry.isPathSelfIntersecting(st)) {
         result.push(st);
         return;
@@ -212,6 +320,10 @@ export const Splitter = {
 
     strokes.forEach(st => {
       if (!st || st.length < 2) return;
+      if (st.isHole) {
+        result.push(st);
+        return;
+      }
       const pts = Geometry.resamplePath(st, 3.5);
       if (pts.length < 3) {
         if (Geometry.pathLength(pts) >= 2.0) result.push(pts);
@@ -239,10 +351,6 @@ export const Splitter = {
   },
 
   /**
-   * 严格保真分配器：100% 保留所有线条，绝不漏线！
-   * 优先保证每个笔画独立刻度；多余线条仅在两线间距 >= 25px（绝对安全距离）时打包，绝不在组内产生碰撞
-   */
-  /**
    * 精确刻度分配器：刻度总数精准等于用户设定的 targetCount (10 ~ 20 之间)，绝不超标！
    * 彻底杜绝零碎小碎片，保证每根线条连贯整洁
    */
@@ -254,14 +362,18 @@ export const Splitter = {
 
     // 仅过滤极微噪点 (长度 < 2.5px)，彻底保全五官眼睛、嘴中缝、牙齿与爪子等细小特征
     let current = strokes
-      .filter(s => s && s.length >= 2 && Geometry.pathLength(s) >= 2.5)
-      .map(s => Geometry.resamplePath(s, 3.5));
+      .filter(s => s && s.length >= 2 && (s.isHole || Geometry.pathLength(s) >= 2.5))
+      .map(s => {
+        if (s.isHole) return s;
+        return Geometry.resamplePath(s, 3.5);
+      });
 
     // 若线段数少于 exactN，将较长线段对半切分扩充
     while (current.length < exactN) {
-      let maxIdx = 0;
+      let maxIdx = -1;
       let maxLen = -1;
       current.forEach((st, idx) => {
+        if (st.isHole) return; // 圆孔不参与切半
         const l = Geometry.pathLength(st);
         if (l > maxLen) {
           maxLen = l;
@@ -269,8 +381,9 @@ export const Splitter = {
         }
       });
 
+      if (maxIdx === -1) break;
       const longest = current[maxIdx];
-      if (longest.length < 6 || maxLen < 16) break;
+      if (longest.isHole || longest.length < 6 || maxLen < 16) break;
 
       const half = Math.floor(longest.length / 2);
       const piece1 = longest.slice(0, half + 1);
@@ -650,12 +763,37 @@ export const Splitter = {
     const tickGroups = [];
 
     solvedSlots.forEach(item => {
-      const groupSlots = item.diskStrokes.map(diskPts => ({
-        centerLine: diskPts,
-        outline: Geometry.createSlotOutline(diskPts, slotWidth),
-        labelPos: Geometry.computeLabelPosition(diskPts, 5.5, 146),
-        tickId: item.tickId
-      }));
+      const groupSlots = item.diskStrokes.map(diskPts => {
+        if (diskPts.isHole) {
+          const hCenter = diskPts.center || {
+            x: diskPts.reduce((acc, p) => acc + p.x, 0) / diskPts.length,
+            y: diskPts.reduce((acc, p) => acc + p.y, 0) / diskPts.length
+          };
+          const hRadius = diskPts.radius || 7.0;
+          const labelPos = Geometry.computeHoleLabelPosition(hCenter, hRadius, 5.5, 146);
+
+          return {
+            isHole: true,
+            center: hCenter,
+            radius: hRadius,
+            centerLine: [
+              { x: hCenter.x - hRadius * 0.6, y: hCenter.y },
+              { x: hCenter.x + hRadius * 0.6, y: hCenter.y }
+            ],
+            outline: diskPts,
+            labelPos: labelPos,
+            tickId: item.tickId
+          };
+        } else {
+          return {
+            isHole: false,
+            centerLine: diskPts,
+            outline: Geometry.createSlotOutline(diskPts, slotWidth),
+            labelPos: Geometry.computeLabelPosition(diskPts, 5.5, 146),
+            tickId: item.tickId
+          };
+        }
+      });
 
       ticks.push({
         id: item.tickId,

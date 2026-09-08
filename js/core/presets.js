@@ -31,10 +31,10 @@ export const Presets = {
       ],
       generateArc(-8, -78, 8, 8, 12, 0, 180),
       generateArc(8, -78, 8, 8, 12, 0, 180),
-      // 左眼
-      generateEllipse(-24, -108, 6, 8, 16),
-      // 右眼
-      generateEllipse(24, -108, 6, 8, 16),
+      // 左眼 (舒适圆形大开孔，支持打孔器打孔)
+      generateHole(-24, -108, 7.0),
+      // 右眼 (舒适圆形大开孔，支持打孔器打孔)
+      generateHole(24, -108, 7.0),
       // 脸颊腮红左
       [
         { x: -48, y: -82 }, { x: -38, y: -82 }
@@ -92,10 +92,10 @@ export const Presets = {
         { x: 38, y: -155 },
         { x: 32, y: -130 }
       ],
-      // 左眼与眨光
-      generateEllipse(-22, -88, 6, 8, 16),
-      // 右眼
-      generateEllipse(22, -88, 6, 8, 16),
+      // 左眼 (舒适圆形大开孔，支持打孔器打孔)
+      generateHole(-22, -88, 7.0),
+      // 右眼 (舒适圆形大开孔，支持打孔器打孔)
+      generateHole(22, -88, 7.0),
       // 倒三角小兔鼻
       [
         { x: -6, y: -74 },
@@ -142,10 +142,10 @@ export const Presets = {
         { x: 52, y: -65 },
         { x: 48, y: -85 }
       ],
-      // 眼睛左
-      generateEllipse(-22, -100, 6, 7, 16),
-      // 眼睛右（带斑点圈）
-      generateEllipse(22, -100, 6, 7, 16),
+      // 眼睛左 (舒适圆形大开孔，支持打孔器打孔)
+      generateHole(-22, -100, 7.0),
+      // 眼睛右 (舒适圆形大开孔，支持打孔器打孔)
+      generateHole(22, -100, 7.0),
       generateEllipse(22, -100, 15, 17, 24),
       // 狗鼻头
       generateEllipse(0, -82, 14, 9, 16),
@@ -197,8 +197,8 @@ export const Presets = {
         { x: -25, y: -40 },
         { x: -45, y: -60 }
       ],
-      // 恐龙大圆眼睛
-      generateEllipse(15, -135, 8, 9, 16),
+      // 恐龙大圆眼睛 (舒适圆形大开孔，支持打孔器打孔)
+      generateHole(15, -135, 7.5),
       generateEllipse(17, -137, 3, 3, 10),
       // 恐龙鼻孔
       generateEllipse(40, -130, 2, 3, 8),
@@ -309,4 +309,15 @@ function generateEllipse(cx, cy, rx, ry, segments = 32, startDeg = 0, endDeg = 3
  */
 function generateArc(cx, cy, rx, ry, segments = 16, startDeg = 0, endDeg = 180) {
   return generateEllipse(cx, cy, rx, ry, segments, startDeg, endDeg);
+}
+
+/**
+ * 辅助函数：生成舒适大圆孔（用于眼睛/实心特征，方便打孔器直接打孔）
+ */
+function generateHole(cx, cy, r = 7.0) {
+  const pts = generateEllipse(cx, cy, r, r, 24);
+  pts.isHole = true;
+  pts.center = { x: cx, y: cy };
+  pts.radius = r;
+  return pts;
 }

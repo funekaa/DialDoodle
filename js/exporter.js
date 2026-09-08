@@ -32,7 +32,7 @@ export const Exporter = {
     ctx.fillRect(0, 0, this.PAGE_WIDTH, this.PAGE_HEIGHT);
 
     // 2. 页眉与标题
-    this.drawHeader(ctx, '旋转解密绘图盘 - B 纸 (旋转画纸)', '使用指南：剪下圆盘并镂空开槽（每个开槽旁均标有对应刻度编号），用图钉固定在 A 纸圆心上');
+    this.drawHeader(ctx, 'DialDoodle · 转盘画 - B 纸 (旋转画纸)', '使用指南：剪下圆盘并镂空开槽；眼睛【○打孔】圆孔可直接用打孔器打孔，旋转到对应刻度描线即可！');
 
     // 3. 绘制剪裁辅助线与小剪刀提示
     ctx.save();
@@ -96,44 +96,83 @@ export const Exporter = {
 
       processedData.tickGroups.forEach(group => {
         group.diskSlots.forEach(slot => {
-          // 开槽镂空多边形
-          if (slot.outline && slot.outline.length > 2) {
+          if (slot.isHole) {
+            const cx = slot.center.x * scale;
+            const cy = slot.center.y * scale;
+            const r = slot.radius * scale;
+
             ctx.save();
             ctx.translate(centerX, centerY);
 
-            ctx.beginPath();
-            ctx.moveTo(slot.outline[0].x * scale, slot.outline[0].y * scale);
-            for (let i = 1; i < slot.outline.length; i++) {
-              ctx.lineTo(slot.outline[i].x * scale, slot.outline[i].y * scale);
-            }
-            ctx.closePath();
-
-            // 槽内浅灰底色，提示可镂空
+            // 1. 圆孔浅灰底色提示
             ctx.fillStyle = '#F1F5F9';
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
             ctx.fill();
 
-            // 细黑开槽切割轮廓线
-            ctx.strokeStyle = '#334155';
-            ctx.lineWidth = 2;
+            // 2. 剪纸/打孔轮廓实线
+            ctx.strokeStyle = '#1E293B';
+            ctx.lineWidth = 2.2;
             ctx.stroke();
 
-            ctx.restore();
-          }
-
-          // 槽中心画笔指引虚线
-          if (slot.centerLine && slot.centerLine.length >= 2) {
-            ctx.save();
-            ctx.translate(centerX, centerY);
-            ctx.beginPath();
-            ctx.moveTo(slot.centerLine[0].x * scale, slot.centerLine[0].y * scale);
-            for (let i = 1; i < slot.centerLine.length; i++) {
-              ctx.lineTo(slot.centerLine[i].x * scale, slot.centerLine[i].y * scale);
-            }
+            // 3. 中心十字定位瞄准线 (打孔机定位点)
             ctx.strokeStyle = '#94A3B8';
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([6, 5]);
+            ctx.lineWidth = 1.2;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(cx - r + 3, cy); ctx.lineTo(cx + r - 3, cy);
+            ctx.moveTo(cx, cy - r + 3); ctx.lineTo(cx, cy + r - 3);
             ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 4. "○打孔" 提示
+            ctx.font = 'bold 11px Arial, sans-serif';
+            ctx.fillStyle = '#475569';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText('○打孔', cx, cy - r - 3);
+
             ctx.restore();
+          } else {
+            // 开槽镂空多边形
+            if (slot.outline && slot.outline.length > 2) {
+              ctx.save();
+              ctx.translate(centerX, centerY);
+
+              ctx.beginPath();
+              ctx.moveTo(slot.outline[0].x * scale, slot.outline[0].y * scale);
+              for (let i = 1; i < slot.outline.length; i++) {
+                ctx.lineTo(slot.outline[i].x * scale, slot.outline[i].y * scale);
+              }
+              ctx.closePath();
+
+              // 槽内浅灰底色，提示可镂空
+              ctx.fillStyle = '#F1F5F9';
+              ctx.fill();
+
+              // 细黑开槽切割轮廓线
+              ctx.strokeStyle = '#334155';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+
+              ctx.restore();
+            }
+
+            // 槽中心画笔指引虚线
+            if (slot.centerLine && slot.centerLine.length >= 2) {
+              ctx.save();
+              ctx.translate(centerX, centerY);
+              ctx.beginPath();
+              ctx.moveTo(slot.centerLine[0].x * scale, slot.centerLine[0].y * scale);
+              for (let i = 1; i < slot.centerLine.length; i++) {
+                ctx.lineTo(slot.centerLine[i].x * scale, slot.centerLine[i].y * scale);
+              }
+              ctx.strokeStyle = '#94A3B8';
+              ctx.lineWidth = 1.5;
+              ctx.setLineDash([6, 5]);
+              ctx.stroke();
+              ctx.restore();
+            }
           }
 
           // 在开槽旁边清晰打印刻度编号微型徽标 (小巧精致，绝不压槽)

@@ -213,11 +213,25 @@ export const Simulator = {
 
     // 将这些 strokes 写入 A 纸笔迹
     group.targetStrokes.forEach(st => {
-      this.drawnStrokesOnA.push({
-        points: st,
-        color: this.options.penColor,
-        tickId: activeTick.id
-      });
+      if (st.isHole) {
+        this.drawnStrokesOnA.push({
+          isHole: true,
+          center: st.center || {
+            x: st.reduce((acc, p) => acc + p.x, 0) / st.length,
+            y: st.reduce((acc, p) => acc + p.y, 0) / st.length
+          },
+          radius: st.radius || 7.0,
+          color: this.options.penColor,
+          tickId: activeTick.id
+        });
+      } else {
+        this.drawnStrokesOnA.push({
+          isHole: false,
+          points: st,
+          color: this.options.penColor,
+          tickId: activeTick.id
+        });
+      }
     });
 
     this.completedTicks.add(activeTick.id);
@@ -236,11 +250,25 @@ export const Simulator = {
     this.processedData.tickGroups.forEach(group => {
       this.completedTicks.add(group.tickId);
       group.targetStrokes.forEach(st => {
-        this.drawnStrokesOnA.push({
-          points: st,
-          color: this.options.penColor,
-          tickId: group.tickId
-        });
+        if (st.isHole) {
+          this.drawnStrokesOnA.push({
+            isHole: true,
+            center: st.center || {
+              x: st.reduce((acc, p) => acc + p.x, 0) / st.length,
+              y: st.reduce((acc, p) => acc + p.y, 0) / st.length
+            },
+            radius: st.radius || 7.0,
+            color: this.options.penColor,
+            tickId: group.tickId
+          });
+        } else {
+          this.drawnStrokesOnA.push({
+            isHole: false,
+            points: st,
+            color: this.options.penColor,
+            tickId: group.tickId
+          });
+        }
       });
     });
 
@@ -437,6 +465,14 @@ export const Simulator = {
     ctx.lineJoin = 'round';
 
     this.drawnStrokesOnA.forEach(item => {
+      if (item.isHole) {
+        ctx.fillStyle = item.color || this.options.penColor;
+        ctx.beginPath();
+        ctx.arc(item.center.x, item.center.y, item.radius, 0, Math.PI * 2);
+        ctx.fill();
+        return;
+      }
+
       const pts = item.points;
       if (!pts || pts.length < 2) return;
 
@@ -536,47 +572,94 @@ export const Simulator = {
         const isDone = this.completedTicks.has(group.tickId);
 
         group.diskSlots.forEach(slot => {
-          // 绘制开槽轮廓（模拟开槽缝隙）
-          if (slot.outline && slot.outline.length > 2) {
-            ctx.beginPath();
-            ctx.moveTo(slot.outline[0].x, slot.outline[0].y);
-            for (let i = 1; i < slot.outline.length; i++) {
-              ctx.lineTo(slot.outline[i].x, slot.outline[i].y);
-            }
-            ctx.closePath();
+          if (slot.isHole) {
+            // 绘制圆形开孔 (眼睛/实心五官特制大圆孔，支持打孔器直接打孔)
+            const cx = slot.center.x;
+            const cy = slot.center.y;
+            const r = slot.radius;
 
-            // 镂空槽背景填充（深浅透明表示孔洞）
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+
             if (isAligned) {
-              ctx.fillStyle = 'rgba(239, 68, 68, 0.18)';
+              ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
               ctx.fill();
               ctx.strokeStyle = '#EF4444';
-              ctx.lineWidth = 1.8;
+              ctx.lineWidth = 2.0;
             } else if (isDone) {
-              ctx.fillStyle = 'rgba(16, 185, 129, 0.12)';
+              ctx.fillStyle = 'rgba(16, 185, 129, 0.15)';
               ctx.fill();
               ctx.strokeStyle = '#10B981';
-              ctx.lineWidth = 1.2;
+              ctx.lineWidth = 1.4;
             } else {
-              ctx.fillStyle = 'rgba(241, 245, 249, 0.85)';
+              ctx.fillStyle = 'rgba(241, 245, 249, 0.90)';
               ctx.fill();
-              ctx.strokeStyle = '#94A3B8';
-              ctx.lineWidth = 1;
+              ctx.strokeStyle = '#64748B';
+              ctx.lineWidth = 1.2;
             }
             ctx.stroke();
-          }
 
-          // 槽中心指引线
-          if (slot.centerLine && slot.centerLine.length >= 2) {
-            ctx.beginPath();
-            ctx.moveTo(slot.centerLine[0].x, slot.centerLine[0].y);
-            for (let i = 1; i < slot.centerLine.length; i++) {
-              ctx.lineTo(slot.centerLine[i].x, slot.centerLine[i].y);
-            }
-            ctx.strokeStyle = isAligned ? '#DC2626' : '#CBD5E1';
+            // 中心打孔定位十字瞄准虚线
+            ctx.strokeStyle = isAligned ? '#DC2626' : '#94A3B8';
             ctx.lineWidth = 1;
-            ctx.setLineDash([3, 3]);
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath();
+            ctx.moveTo(cx - r + 2, cy); ctx.lineTo(cx + r - 2, cy);
+            ctx.moveTo(cx, cy - r + 2); ctx.lineTo(cx, cy + r - 2);
             ctx.stroke();
             ctx.setLineDash([]);
+
+            // 打孔提示文字
+            ctx.font = 'bold 7.5px Arial, sans-serif';
+            ctx.fillStyle = isAligned ? '#EF4444' : '#64748B';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText('○孔', cx, cy - r - 2);
+            ctx.restore();
+          } else {
+            // 绘制开槽轮廓（模拟开槽缝隙）
+            if (slot.outline && slot.outline.length > 2) {
+              ctx.beginPath();
+              ctx.moveTo(slot.outline[0].x, slot.outline[0].y);
+              for (let i = 1; i < slot.outline.length; i++) {
+                ctx.lineTo(slot.outline[i].x, slot.outline[i].y);
+              }
+              ctx.closePath();
+
+              // 镂空槽背景填充（深浅透明表示孔洞）
+              if (isAligned) {
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.18)';
+                ctx.fill();
+                ctx.strokeStyle = '#EF4444';
+                ctx.lineWidth = 1.8;
+              } else if (isDone) {
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.12)';
+                ctx.fill();
+                ctx.strokeStyle = '#10B981';
+                ctx.lineWidth = 1.2;
+              } else {
+                ctx.fillStyle = 'rgba(241, 245, 249, 0.85)';
+                ctx.fill();
+                ctx.strokeStyle = '#94A3B8';
+                ctx.lineWidth = 1;
+              }
+              ctx.stroke();
+            }
+
+            // 槽中心指引线
+            if (slot.centerLine && slot.centerLine.length >= 2) {
+              ctx.beginPath();
+              ctx.moveTo(slot.centerLine[0].x, slot.centerLine[0].y);
+              for (let i = 1; i < slot.centerLine.length; i++) {
+                ctx.lineTo(slot.centerLine[i].x, slot.centerLine[i].y);
+              }
+              ctx.strokeStyle = isAligned ? '#DC2626' : '#CBD5E1';
+              ctx.lineWidth = 1;
+              ctx.setLineDash([3, 3]);
+              ctx.stroke();
+              ctx.setLineDash([]);
+            }
           }
 
           // 绘制开槽旁边的刻度编号微型徽章 (尺寸小巧精致，绝不遮挡开槽)
