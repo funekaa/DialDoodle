@@ -130,9 +130,8 @@ export const ImageProcessor = {
           if (count >= 15 && count <= 1800 && compW >= 4 && compW <= 60 && compH >= 4 && compH <= 60 && ratio >= 0.35 && ratio <= 2.8) {
             const eyeCx = (minX + maxX) / 2;
             const eyeCy = (minY + maxY) / 2;
-            const r = Math.max(6.5, Math.min(8.5, Math.max(compW, compH) / 4 + 2.0));
-
-            // 生成眼睛独立实心大圆孔 (支持打孔器打孔)
+            const r = 4.2;
+            // 生成 4mm 纯净圆孔 (半径 4.2px)
             const eyeStroke = [];
             for (let deg = 0; deg < 360; deg += 18) {
               const rad = (deg * Math.PI) / 180;

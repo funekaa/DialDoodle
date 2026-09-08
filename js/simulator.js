@@ -599,23 +599,6 @@ export const Simulator = {
               ctx.lineWidth = 1.2;
             }
             ctx.stroke();
-
-            // 中心打孔定位十字瞄准虚线
-            ctx.strokeStyle = isAligned ? '#DC2626' : '#94A3B8';
-            ctx.lineWidth = 1;
-            ctx.setLineDash([2, 2]);
-            ctx.beginPath();
-            ctx.moveTo(cx - r + 2, cy); ctx.lineTo(cx + r - 2, cy);
-            ctx.moveTo(cx, cy - r + 2); ctx.lineTo(cx, cy + r - 2);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            // 打孔提示文字
-            ctx.font = 'bold 7.5px Arial, sans-serif';
-            ctx.fillStyle = isAligned ? '#EF4444' : '#64748B';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            ctx.fillText('○孔', cx, cy - r - 2);
             ctx.restore();
           } else {
             // 绘制开槽轮廓（模拟开槽缝隙）

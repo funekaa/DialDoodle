@@ -75,8 +75,8 @@ export const Splitter = {
     const w = maxX - minX;
     const h = maxY - minY;
 
-    // 眼睛开大一点：半径至少 6.5px (对应 A4 上约 6.0~7.5mm，完全契合标准单孔打孔器规格)
-    const holeR = Math.max(6.5, Math.min(8.5, Math.max(w, h) / 2 + 1.2));
+    // 4mm 纯净圆孔 (半径 4.2px，对应 A4 上约 4.0mm 直径)
+    const holeR = 4.2;
 
     const circlePts = [];
     const segs = 24;
@@ -769,7 +769,7 @@ export const Splitter = {
             x: diskPts.reduce((acc, p) => acc + p.x, 0) / diskPts.length,
             y: diskPts.reduce((acc, p) => acc + p.y, 0) / diskPts.length
           };
-          const hRadius = diskPts.radius || 7.0;
+          const hRadius = diskPts.radius || 4.2;
           const labelPos = Geometry.computeHoleLabelPosition(hCenter, hRadius, 5.5, 146);
 
           return {

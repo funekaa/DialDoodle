@@ -32,7 +32,7 @@ export const Exporter = {
     ctx.fillRect(0, 0, this.PAGE_WIDTH, this.PAGE_HEIGHT);
 
     // 2. 页眉与标题
-    this.drawHeader(ctx, 'DialDoodle · 转盘画 - B 纸 (旋转画纸)', '使用指南：剪下圆盘并镂空开槽；眼睛【○打孔】圆孔可直接用打孔器打孔，旋转到对应刻度描线即可！');
+    this.drawHeader(ctx, 'DialDoodle · 转盘画 - B 纸 (旋转画纸)', '使用指南：剪下圆盘并镂空开槽；眼睛 4mm 圆孔直接开孔，旋转到对应刻度描线即可！');
 
     // 3. 绘制剪裁辅助线与小剪刀提示
     ctx.save();
@@ -114,24 +114,6 @@ export const Exporter = {
             ctx.strokeStyle = '#1E293B';
             ctx.lineWidth = 2.2;
             ctx.stroke();
-
-            // 3. 中心十字定位瞄准线 (打孔机定位点)
-            ctx.strokeStyle = '#94A3B8';
-            ctx.lineWidth = 1.2;
-            ctx.setLineDash([4, 4]);
-            ctx.beginPath();
-            ctx.moveTo(cx - r + 3, cy); ctx.lineTo(cx + r - 3, cy);
-            ctx.moveTo(cx, cy - r + 3); ctx.lineTo(cx, cy + r - 3);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            // 4. "○打孔" 提示
-            ctx.font = 'bold 11px Arial, sans-serif';
-            ctx.fillStyle = '#475569';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            ctx.fillText('○打孔', cx, cy - r - 3);
-
             ctx.restore();
           } else {
             // 开槽镂空多边形
