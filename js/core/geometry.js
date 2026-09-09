@@ -278,6 +278,13 @@ export const Geometry = {
   },
 
   /**
+   * 计算点 p 到线段 (a, b) 的最短欧氏距离
+   */
+  distToSegment(p, a, b) {
+    return Math.sqrt(this.distSqPointToSegment(p, a, b));
+  },
+
+  /**
    * 判断两条线段 (p1, p2) 和 (p3, p4) 是否严格相交
    */
   segmentsIntersect(p1, p2, p3, p4) {
