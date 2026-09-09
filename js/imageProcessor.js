@@ -80,106 +80,14 @@ export const ImageProcessor = {
       binary[i] = gray[i] < threshold ? 1 : 0;
     }
 
-    if (report) report(45, '正在高精度识别圆圈轮廓与五官特征...');
+    if (report) report(45, '正在高精度识别实心眼珠与五官特征...');
 
-    // 2. 几何圆圈与实心特征高保真识别器 (精准提取空心圆圈、五官眼睛、时钟底座脚与圆纽扣)
-    // 解决小圆圈被误当成实心点、或被骨架化算法剥蚀丢失/变形的问题
+    // 2. 实心特征高保真识别器 (精准提取实心眼睛小黑点与圆纽扣)
+    // 闭合空心圆圈由下文骨架细化统一提取单中心线，杜绝任何双层重复画线
     const getIdx = (x, y) => y * targetW + x;
     let rawStrokes = [];
 
-    // A. 探测闭合空心圆圈 (通过反相二值图检测被包围的白色空腔区域，对相切相交圆圈依然100%有效)
-    const inverted = new Uint8Array(targetW * targetH);
-    for (let i = 0; i < binary.length; i++) inverted[i] = binary[i] === 0 ? 1 : 0;
-    const invVisited = new Uint8Array(targetW * targetH);
-
-    for (let y = 0; y < targetH; y++) {
-      for (let x = 0; x < targetW; x++) {
-        const idx = getIdx(x, y);
-        if (inverted[idx] === 1 && !invVisited[idx]) {
-          const queue = [idx];
-          invVisited[idx] = 1;
-          const comp = [idx];
-          let isBorder = (x === 0 || x === targetW - 1 || y === 0 || y === targetH - 1);
-          let minX = x, maxX = x, minY = y, maxY = y;
-
-          let qHead = 0;
-          while (qHead < queue.length) {
-            const cur = queue[qHead++];
-            const cy = Math.floor(cur / targetW);
-            const cx = cur % targetW;
-            if (cx === 0 || cx === targetW - 1 || cy === 0 || cy === targetH - 1) isBorder = true;
-            if (cx < minX) minX = cx;
-            if (cx > maxX) maxX = cx;
-            if (cy < minY) minY = cy;
-            if (cy > maxY) maxY = cy;
-
-            const nbs = [cur - 1, cur + 1, cur - targetW, cur + targetW];
-            for (const n of nbs) {
-              if (n >= 0 && n < inverted.length && inverted[n] === 1 && !invVisited[n]) {
-                invVisited[n] = 1;
-                queue.push(n);
-                comp.push(n);
-              }
-            }
-          }
-
-          if (!isBorder) {
-            const w = maxX - minX + 1;
-            const h = maxY - minY + 1;
-            const count = comp.length;
-            const ratio = w / h;
-
-            // 识别小圆圈 (眼睛圆轮廓、时钟底座圆脚、小纽扣、中心小转轴)
-            if (count >= 12 && count <= 4500 && ratio >= 0.65 && ratio <= 1.50 && Math.max(w, h) <= 75) {
-              let sumX = 0, sumY = 0;
-              comp.forEach(p => {
-                sumX += p % targetW;
-                sumY += Math.floor(p / targetW);
-              });
-              const cx = sumX / count;
-              const cy = sumY / count;
-
-              // 圆形度校验 (实测圆腔面积比)
-              const areaRatio = count / (Math.PI * (w / 2) * (h / 2));
-              if (areaRatio >= 0.70 && areaRatio <= 1.25) {
-                // 折线中心半径约为内腔半径 + 半线宽
-                const r = (w + h) / 4 + 1.2;
-                const circle = [];
-                const segs = 32;
-                for (let s = 0; s <= segs; s++) {
-                  const a = (s * 2 * Math.PI) / segs;
-                  circle.push({
-                    x: cx + r * Math.cos(a),
-                    y: cy + r * Math.sin(a)
-                  });
-                }
-                circle.isCircle = true;
-                circle.isHole = false; // 空心圆圈，非实心打孔
-                circle.center = { x: cx, y: cy };
-                circle.radius = r;
-                rawStrokes.push(circle);
-
-                // 清除二值图中的圆环像素，防止骨架化产生杂乱碎屑
-                for (let dy = -Math.ceil(r + 3.5); dy <= Math.ceil(r + 3.5); dy++) {
-                  for (let dx = -Math.ceil(r + 3.5); dx <= Math.ceil(r + 3.5); dx++) {
-                    const d = Math.hypot(dx, dy);
-                    if (d >= r - 3.5 && d <= r + 3.5) {
-                      const px = Math.round(cx + dx);
-                      const py = Math.round(cy + dy);
-                      if (px >= 0 && px < targetW && py >= 0 && py < targetH) {
-                        binary[py * targetW + px] = 0;
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // B. 探测真正的实心黑圆斑/实心眼珠
+    // 探测真正的实心黑圆斑/实心眼珠 (例如小鸟眼珠、动物瞳孔)
     const solidVisited = new Uint8Array(targetW * targetH);
     for (let y = 1; y < targetH - 1; y++) {
       for (let x = 1; x < targetW - 1; x++) {
@@ -344,7 +252,8 @@ export const ImageProcessor = {
     const nonCircles = cloneList.filter(s => !s.isCircle && !s.isHole);
     const circlesAndHoles = cloneList.filter(s => s.isCircle || s.isHole);
     const mergedNonCircles = this.mergeAdjacentSmoothStrokes(nonCircles, 7.0, 40);
-    rawStrokes = [...circlesAndHoles, ...mergedNonCircles];
+    // 5. 严格几何去重：杜绝任何重合、嵌套、同心多层画线
+    rawStrokes = this.deduplicateStrokes([...circlesAndHoles, ...mergedNonCircles]);
 
     if (report) report(90, '正在适配转盘几何尺寸...');
 
@@ -412,7 +321,7 @@ export const ImageProcessor = {
       return grid[y * width + x];
     };
 
-    while (changing && count < 16) {
+    while (changing && count < 24) {
       changing = false;
       count++;
       const toWhite = [];
@@ -537,5 +446,99 @@ export const ImageProcessor = {
       }
     }
     return list;
+  },
+
+  /**
+   * 折线与圆孔笔画几何去重，杜绝任何重合、嵌套、同心多层画线
+   */
+  deduplicateStrokes(strokes) {
+    if (!strokes || strokes.length < 2) return strokes || [];
+    const isRedundant = new Uint8Array(strokes.length);
+
+    for (let i = 0; i < strokes.length; i++) {
+      if (isRedundant[i]) continue;
+      const s1 = strokes[i];
+      if (!s1 || s1.length < 2) continue;
+
+      for (let j = i + 1; j < strokes.length; j++) {
+        if (isRedundant[j]) continue;
+        const s2 = strokes[j];
+        if (!s2 || s2.length < 2) continue;
+
+        // 1. 如果都是打孔点，且圆心极度贴近，去重
+        if (s1.isHole && s2.isHole) {
+          const dCenter = Math.hypot((s1.center?.x || 0) - (s2.center?.x || 0), (s1.center?.y || 0) - (s2.center?.y || 0));
+          if (dCenter < 3.5) {
+            isRedundant[j] = 1;
+            continue;
+          }
+        }
+
+        // 2. 如果一个是打孔点，另一个是普通折线，且折线所有点都落在打孔圆范围内
+        if (s1.isHole !== s2.isHole) {
+          const hole = s1.isHole ? s1 : s2;
+          const line = s1.isHole ? s2 : s1;
+          const redundantIdx = s1.isHole ? j : i;
+          if (hole.center) {
+            let allInside = true;
+            for (const pt of line) {
+              if (Math.hypot(pt.x - hole.center.x, pt.y - hole.center.y) > (hole.radius || 4.0) + 2.5) {
+                allInside = false;
+                break;
+              }
+            }
+            if (allInside) {
+              isRedundant[redundantIdx] = 1;
+              if (redundantIdx === i) break;
+              continue;
+            }
+          }
+        }
+
+        // 3. 两个普通折线：检查投影距离与几何重叠度
+        const len1 = Geometry.pathLength(s1);
+        const len2 = Geometry.pathLength(s2);
+        if (len1 < 1.0 || len2 < 1.0) continue;
+
+        const sampleDist = (fromPath, toPath) => {
+          let sumDist = 0;
+          let maxDist = 0;
+          const sampleCount = Math.min(fromPath.length, 12);
+          const step = Math.max(1, Math.floor(fromPath.length / sampleCount));
+          let count = 0;
+          for (let k = 0; k < fromPath.length; k += step) {
+            const p = fromPath[k];
+            let minDist = Infinity;
+            for (let m = 0; m < toPath.length - 1; m++) {
+              const d = Geometry.distToSegment(p, toPath[m], toPath[m + 1]);
+              if (d < minDist) minDist = d;
+            }
+            sumDist += minDist;
+            if (minDist > maxDist) maxDist = minDist;
+            count++;
+          }
+          return { avg: sumDist / count, max: maxDist };
+        };
+
+        const d1to2 = sampleDist(s1, s2);
+        const d2to1 = sampleDist(s2, s1);
+
+        // 若双向平均距离 < 2.0px 且最大距离 < 4.0px，说明两者为同一线条的重复画线
+        if (d1to2.avg < 2.0 && d2to1.avg < 2.0 && d1to2.max < 4.0 && d2to1.max < 4.0) {
+          if (len1 >= len2) {
+            isRedundant[j] = 1;
+          } else {
+            isRedundant[i] = 1;
+            break;
+          }
+        }
+      }
+    }
+
+    const filtered = [];
+    for (let i = 0; i < strokes.length; i++) {
+      if (!isRedundant[i]) filtered.push(strokes[i]);
+    }
+    return filtered;
   }
 };
