@@ -48,7 +48,7 @@ export const ImageProcessor = {
   /**
    * 解析图像像素，提取单中心线骨架并去除重复划线
    */
-  traceImageToStrokes(img, bounds, report = null) {
+  traceImageToStrokes(img, bounds = { cx: 0, cy: -82, width: 152, height: 132 }, report = null) {
     const canvas = document.createElement('canvas');
     // 分辨率提升至 480px，彻底避免嘴尖细缝被降采样粘连融化
     const targetW = Math.max(460, Math.min(600, img.width || 460));
@@ -80,75 +80,171 @@ export const ImageProcessor = {
       binary[i] = gray[i] < threshold ? 1 : 0;
     }
 
-    if (report) report(45, '正在检测实心五官眼睛与斑点...');
+    if (report) report(45, '正在高精度识别圆圈轮廓与五官特征...');
 
-    // 2. 实心眼睛/斑点智能识别器 (解决实心黑眼珠被细化骨架算法过度剥蚀吃掉的问题)
-    const solidVisited = new Uint8Array(targetW * targetH);
+    // 2. 几何圆圈与实心特征高保真识别器 (精准提取空心圆圈、五官眼睛、时钟底座脚与圆纽扣)
+    // 解决小圆圈被误当成实心点、或被骨架化算法剥蚀丢失/变形的问题
     const getIdx = (x, y) => y * targetW + x;
     let rawStrokes = [];
 
-    for (let y = 1; y < targetH - 1; y++) {
-      for (let x = 1; x < targetW - 1; x++) {
+    // A. 探测闭合空心圆圈 (通过反相二值图检测被包围的白色空腔区域，对相切相交圆圈依然100%有效)
+    const inverted = new Uint8Array(targetW * targetH);
+    for (let i = 0; i < binary.length; i++) inverted[i] = binary[i] === 0 ? 1 : 0;
+    const invVisited = new Uint8Array(targetW * targetH);
+
+    for (let y = 0; y < targetH; y++) {
+      for (let x = 0; x < targetW; x++) {
         const idx = getIdx(x, y);
-        if (binary[idx] === 1 && !solidVisited[idx]) {
-          // BFS 探测连通域
+        if (inverted[idx] === 1 && !invVisited[idx]) {
           const queue = [idx];
-          solidVisited[idx] = 1;
-          const compIndices = [idx];
+          invVisited[idx] = 1;
+          const comp = [idx];
+          let isBorder = (x === 0 || x === targetW - 1 || y === 0 || y === targetH - 1);
           let minX = x, maxX = x, minY = y, maxY = y;
 
           let qHead = 0;
           while (qHead < queue.length) {
-            const curIdx = queue[qHead++];
-            const cy = Math.floor(curIdx / targetW);
-            const cx = curIdx % targetW;
-
+            const cur = queue[qHead++];
+            const cy = Math.floor(cur / targetW);
+            const cx = cur % targetW;
+            if (cx === 0 || cx === targetW - 1 || cy === 0 || cy === targetH - 1) isBorder = true;
             if (cx < minX) minX = cx;
             if (cx > maxX) maxX = cx;
             if (cy < minY) minY = cy;
             if (cy > maxY) maxY = cy;
 
-            const nbs = [
-              curIdx - 1, curIdx + 1,
-              curIdx - targetW, curIdx + targetW
-            ];
-            for (const nIdx of nbs) {
-              if (nIdx >= 0 && nIdx < binary.length && binary[nIdx] === 1 && !solidVisited[nIdx]) {
-                solidVisited[nIdx] = 1;
-                queue.push(nIdx);
-                compIndices.push(nIdx);
+            const nbs = [cur - 1, cur + 1, cur - targetW, cur + targetW];
+            for (const n of nbs) {
+              if (n >= 0 && n < inverted.length && inverted[n] === 1 && !invVisited[n]) {
+                invVisited[n] = 1;
+                queue.push(n);
+                comp.push(n);
+              }
+            }
+          }
+
+          if (!isBorder) {
+            const w = maxX - minX + 1;
+            const h = maxY - minY + 1;
+            const count = comp.length;
+            const ratio = w / h;
+
+            // 识别小圆圈 (眼睛圆轮廓、时钟底座圆脚、小纽扣、中心小转轴)
+            if (count >= 12 && count <= 4500 && ratio >= 0.65 && ratio <= 1.50 && Math.max(w, h) <= 75) {
+              let sumX = 0, sumY = 0;
+              comp.forEach(p => {
+                sumX += p % targetW;
+                sumY += Math.floor(p / targetW);
+              });
+              const cx = sumX / count;
+              const cy = sumY / count;
+
+              // 圆形度校验 (实测圆腔面积比)
+              const areaRatio = count / (Math.PI * (w / 2) * (h / 2));
+              if (areaRatio >= 0.70 && areaRatio <= 1.25) {
+                // 折线中心半径约为内腔半径 + 半线宽
+                const r = (w + h) / 4 + 1.2;
+                const circle = [];
+                const segs = 32;
+                for (let s = 0; s <= segs; s++) {
+                  const a = (s * 2 * Math.PI) / segs;
+                  circle.push({
+                    x: cx + r * Math.cos(a),
+                    y: cy + r * Math.sin(a)
+                  });
+                }
+                circle.isCircle = true;
+                circle.isHole = false; // 空心圆圈，非实心打孔
+                circle.center = { x: cx, y: cy };
+                circle.radius = r;
+                rawStrokes.push(circle);
+
+                // 清除二值图中的圆环像素，防止骨架化产生杂乱碎屑
+                for (let dy = -Math.ceil(r + 3.5); dy <= Math.ceil(r + 3.5); dy++) {
+                  for (let dx = -Math.ceil(r + 3.5); dx <= Math.ceil(r + 3.5); dx++) {
+                    const d = Math.hypot(dx, dy);
+                    if (d >= r - 3.5 && d <= r + 3.5) {
+                      const px = Math.round(cx + dx);
+                      const py = Math.round(cy + dy);
+                      if (px >= 0 && px < targetW && py >= 0 && py < targetH) {
+                        binary[py * targetW + px] = 0;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // B. 探测真正的实心黑圆斑/实心眼珠
+    const solidVisited = new Uint8Array(targetW * targetH);
+    for (let y = 1; y < targetH - 1; y++) {
+      for (let x = 1; x < targetW - 1; x++) {
+        const idx = getIdx(x, y);
+        if (binary[idx] === 1 && !solidVisited[idx]) {
+          const queue = [idx];
+          solidVisited[idx] = 1;
+          const comp = [idx];
+          let minX = x, maxX = x, minY = y, maxY = y;
+
+          let qHead = 0;
+          while (qHead < queue.length) {
+            const cur = queue[qHead++];
+            const cy = Math.floor(cur / targetW);
+            const cx = cur % targetW;
+            if (cx < minX) minX = cx;
+            if (cx > maxX) maxX = cx;
+            if (cy < minY) minY = cy;
+            if (cy > maxY) maxY = cy;
+
+            const nbs = [cur - 1, cur + 1, cur - targetW, cur + targetW];
+            for (const n of nbs) {
+              if (n >= 0 && n < binary.length && binary[n] === 1 && !solidVisited[n]) {
+                solidVisited[n] = 1;
+                queue.push(n);
+                comp.push(n);
               }
             }
           }
 
           const compW = maxX - minX + 1;
           const compH = maxY - minY + 1;
-          const count = compIndices.length;
+          const count = comp.length;
           const ratio = compW / compH;
 
-          // 独立实心眼球/鼻孔斑点特征判定 (面积 15~1800px, 宽高在 4~60px 之间，长宽比饱满 0.35~2.8)
-          if (count >= 15 && count <= 1800 && compW >= 4 && compW <= 60 && compH >= 4 && compH <= 60 && ratio >= 0.35 && ratio <= 2.8) {
-            const eyeCx = (minX + maxX) / 2;
-            const eyeCy = (minY + maxY) / 2;
-            const r = 4.2;
-            // 生成 4mm 纯净圆孔 (半径 4.2px)
-            const eyeStroke = [];
-            for (let deg = 0; deg < 360; deg += 18) {
-              const rad = (deg * Math.PI) / 180;
-              eyeStroke.push({
-                x: eyeCx + r * Math.cos(rad),
-                y: eyeCy + r * Math.sin(rad)
+          // 仅当填充饱满无孔时才视为实心斑点
+          if (count >= 15 && count <= 1200 && compW <= 40 && compH <= 40 && ratio >= 0.65 && ratio <= 1.50) {
+            const fillRatio = count / (compW * compH);
+            if (fillRatio >= 0.58) {
+              let sumX = 0, sumY = 0;
+              comp.forEach(p => {
+                sumX += p % targetW;
+                sumY += Math.floor(p / targetW);
               });
-            }
-            eyeStroke.isHole = true;
-            eyeStroke.center = { x: eyeCx, y: eyeCy };
-            eyeStroke.radius = r;
-            rawStrokes.push(eyeStroke);
+              const cx = sumX / count;
+              const cy = sumY / count;
+              const r = Math.sqrt(count / Math.PI);
 
-            // 从二值图中清除该实心眼球，避免骨架化算法产生孤立碎屑
-            compIndices.forEach(pIdx => {
-              binary[pIdx] = 0;
-            });
+              const dot = [];
+              const segs = 24;
+              for (let s = 0; s <= segs; s++) {
+                const a = (s * 2 * Math.PI) / segs;
+                dot.push({
+                  x: cx + r * Math.cos(a),
+                  y: cy + r * Math.sin(a)
+                });
+              }
+              dot.isHole = true;
+              dot.isCircle = false;
+              dot.center = { x: cx, y: cy };
+              dot.radius = r;
+              rawStrokes.push(dot);
+
+              comp.forEach(p => { binary[p] = 0; });
+            }
           }
         }
       }
@@ -236,8 +332,19 @@ export const ImageProcessor = {
       throw new Error('未在图片中检测到清晰的线条轮廓，请上传黑白分明的简笔画图片。');
     }
 
-    // 4. 自然平滑连接相邻同向碎片笔画 (端点距离 <= 7px 且切向夹角 <= 40度)
-    rawStrokes = this.mergeAdjacentSmoothStrokes(rawStrokes, 7.0, 40);
+    // 4. 自然平滑连接相邻同向碎片笔画 (避开独立圆圈与打孔)
+    const cloneList = rawStrokes.map(s => {
+      const copy = [...s];
+      if (s.isCircle) copy.isCircle = true;
+      if (s.isHole) copy.isHole = true;
+      if (s.center) copy.center = { ...s.center };
+      if (s.radius) copy.radius = s.radius;
+      return copy;
+    });
+    const nonCircles = cloneList.filter(s => !s.isCircle && !s.isHole);
+    const circlesAndHoles = cloneList.filter(s => s.isCircle || s.isHole);
+    const mergedNonCircles = this.mergeAdjacentSmoothStrokes(nonCircles, 7.0, 40);
+    rawStrokes = [...circlesAndHoles, ...mergedNonCircles];
 
     if (report) report(90, '正在适配转盘几何尺寸...');
 
@@ -273,6 +380,17 @@ export const ImageProcessor = {
           };
         }
         return mapped;
+      }
+      if (stroke.isCircle) {
+        mapped.isCircle = true;
+        if (stroke.radius) mapped.radius = stroke.radius * scale;
+        if (stroke.center) {
+          mapped.center = {
+            x: bounds.cx + (stroke.center.x - srcCenterX) * scale,
+            y: bounds.cy + (stroke.center.y - srcCenterY) * scale
+          };
+        }
+        return mapped; // 保持数学圆平滑度，避免重采样导致多边形失真
       }
       return Geometry.resamplePath(mapped, 3.5);
     });
@@ -377,7 +495,14 @@ export const ImageProcessor = {
    */
   mergeAdjacentSmoothStrokes(strokes, maxGap = 6.0, maxAngle = 35) {
     if (!strokes || strokes.length < 2) return strokes || [];
-    let list = strokes.map(s => [...s]);
+    let list = strokes.map(s => {
+      const copy = [...s];
+      if (s.isCircle) copy.isCircle = true;
+      if (s.isHole) copy.isHole = true;
+      if (s.center) copy.center = { ...s.center };
+      if (s.radius) copy.radius = s.radius;
+      return copy;
+    });
     let merged = true;
 
     while (merged) {
@@ -388,6 +513,7 @@ export const ImageProcessor = {
           const s1 = list[i];
           const s2 = list[j];
           if (!s1 || !s2 || s1.length < 2 || s2.length < 2) continue;
+          if (s1.isCircle || s2.isCircle || s1.isHole || s2.isHole) continue;
 
           const p1Tail = s1[s1.length - 1];
           const p1PreTail = s1[s1.length - 2];

@@ -227,6 +227,7 @@ export const Simulator = {
       } else {
         this.drawnStrokesOnA.push({
           isHole: false,
+          isCircle: !!st.isCircle,
           points: st,
           color: this.options.penColor,
           tickId: activeTick.id
@@ -264,6 +265,7 @@ export const Simulator = {
         } else {
           this.drawnStrokesOnA.push({
             isHole: false,
+            isCircle: !!st.isCircle,
             points: st,
             color: this.options.penColor,
             tickId: group.tickId
@@ -465,7 +467,7 @@ export const Simulator = {
     ctx.lineJoin = 'round';
 
     this.drawnStrokesOnA.forEach(item => {
-      if (item.isHole) {
+      if (item.isHole && !item.isCircle) {
         ctx.fillStyle = item.color || this.options.penColor;
         ctx.beginPath();
         ctx.arc(item.center.x, item.center.y, item.radius, 0, Math.PI * 2);
@@ -482,6 +484,9 @@ export const Simulator = {
       ctx.moveTo(pts[0].x, pts[0].y);
       for (let i = 1; i < pts.length; i++) {
         ctx.lineTo(pts[i].x, pts[i].y);
+      }
+      if (item.isCircle) {
+        ctx.closePath();
       }
       ctx.stroke();
     });

@@ -17,6 +17,7 @@ export const Splitter = {
    */
   smoothStroke(points) {
     if (!points || points.length < 3) return points || [];
+    if (points.isCircle || points.isHole) return points; // 保持数学圆与打孔精度，不作收缩滤波
     const smoothed = [points[0]];
     for (let i = 1; i < points.length - 1; i++) {
       smoothed.push({
@@ -29,31 +30,12 @@ export const Splitter = {
   },
 
   /**
-   * 判断线条是否属于紧凑型眼睛/圆孔特征
+   * 判断线条是否属于显式眼睛/圆孔打孔特征
    */
   isCompactHole(stroke) {
     if (!stroke || stroke.length < 3) return false;
-    if (stroke.isHole) return true;
-
-    const first = stroke[0];
-    const last = stroke[stroke.length - 1];
-    const headTailDist = Geometry.dist(first, last);
-    const totalLen = Geometry.pathLength(stroke);
-
-    const isClosed = (totalLen >= 6 && headTailDist <= 16 && (headTailDist / totalLen) < 0.35) || (headTailDist <= 2.5 && totalLen >= 5);
-    if (!isClosed) return false;
-
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    stroke.forEach(pt => {
-      if (pt.x < minX) minX = pt.x;
-      if (pt.x > maxX) maxX = pt.x;
-      if (pt.y < minY) minY = pt.y;
-      if (pt.y > maxY) maxY = pt.y;
-    });
-    const w = maxX - minX;
-    const h = maxY - minY;
-
-    return (w <= 24 && h <= 24 && totalLen <= 70 && totalLen >= 6);
+    // 仅当笔画原本显式声明为 isHole 打孔时才视为打孔，普通线稿空心圆圈绝不强行变为打孔点
+    return !!stroke.isHole;
   },
 
   /**
@@ -135,6 +117,16 @@ export const Splitter = {
           };
         }
       }
+      if (st.isCircle) {
+        res.isCircle = true;
+        if (st.radius) res.radius = st.radius * scale;
+        if (st.center) {
+          res.center = {
+            x: st.center.x * scale,
+            y: centerTargetY + (st.center.y - centerSourceY) * scale
+          };
+        }
+      }
       return res;
     });
 
@@ -154,6 +146,11 @@ export const Splitter = {
         const res = st.map(pt => ({ x: pt.x, y: pt.y - shiftUp }));
         if (st.isHole) {
           res.isHole = true;
+          res.radius = st.radius;
+          if (st.center) res.center = { x: st.center.x, y: st.center.y - shiftUp };
+        }
+        if (st.isCircle) {
+          res.isCircle = true;
           res.radius = st.radius;
           if (st.center) res.center = { x: st.center.x, y: st.center.y - shiftUp };
         }
@@ -177,6 +174,11 @@ export const Splitter = {
           if (st.radius) res.radius = st.radius * factor;
           if (st.center) res.center = { x: st.center.x * factor, y: st.center.y * factor };
         }
+        if (st.isCircle) {
+          res.isCircle = true;
+          if (st.radius) res.radius = st.radius * factor;
+          if (st.center) res.center = { x: st.center.x * factor, y: st.center.y * factor };
+        }
         return res;
       });
     }
@@ -194,7 +196,7 @@ export const Splitter = {
     strokes.forEach(st => {
       if (!st || st.length < 2) return;
 
-      // 1. 眼睛/紧凑型圆孔判定：直接保留为完整独立圆孔，开大一点便于打孔！
+      // 1. 眼睛/紧凑型圆孔判定：仅当原本即显式声明为 isHole 时才作为打孔处理
       if (this.isCompactHole(st)) {
         const hole = this.createHoleStroke(st);
         result.push(hole);
@@ -208,15 +210,16 @@ export const Splitter = {
       const last = sampled[sampled.length - 1];
       const headTailDist = Geometry.dist(first, last);
       const totalLen = Geometry.pathLength(sampled);
-      // 必须首尾距离近且相对于总周长比例很小，才是真正的闭合环 (避免误杀开放短线条)
-      const isClosed = (totalLen >= 10 && headTailDist <= 16 && (headTailDist / totalLen) < 0.35) || (headTailDist <= 2.0 && totalLen >= 8);
+      // 必须首尾距离近且相对于总周长比例很小，或者是标记的几何圆
+      const isClosed = st.isCircle || (totalLen >= 10 && headTailDist <= 16 && (headTailDist / totalLen) < 0.35) || (headTailDist <= 2.0 && totalLen >= 8);
 
       if (isClosed) {
         const N = sampled.length;
         if (totalLen < 75) {
-          // 小圆圈（眼睛、鼻孔、小斑点）：保留 78% 的圆弧，留出 22% 的实体纸桥缺口，形成开口 C 形槽
-          const keepCount = Math.max(3, Math.floor(N * 0.78));
+          // 小圆圈（时钟圆脚、小纽扣、小圆眼睛等）：保留 80% 的圆弧，留出 20% 的实体纸桥缺口，形成开口 C 形槽
+          const keepCount = Math.max(3, Math.floor(N * 0.80));
           const openArc = sampled.slice(0, keepCount);
+          if (st.isCircle) openArc.isCircle = true;
           if (Geometry.pathLength(openArc) >= 2.5) {
             result.push(openArc);
           }
@@ -253,7 +256,7 @@ export const Splitter = {
 
     strokes.forEach(st => {
       if (!st || st.length < 2) return;
-      if (st.isHole) {
+      if (st.isHole || st.isCircle) {
         result.push(st);
         return;
       }
@@ -295,7 +298,7 @@ export const Splitter = {
     const result = [];
     strokes.forEach(st => {
       if (!st || st.length < 2) return;
-      if (st.isHole) {
+      if (st.isHole || st.isCircle) {
         result.push(st);
         return;
       }
@@ -320,7 +323,7 @@ export const Splitter = {
 
     strokes.forEach(st => {
       if (!st || st.length < 2) return;
-      if (st.isHole) {
+      if (st.isHole || st.isCircle) {
         result.push(st);
         return;
       }
