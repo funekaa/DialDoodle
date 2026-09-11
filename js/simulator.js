@@ -650,26 +650,16 @@ export const Simulator = {
             }
           }
 
-          // 绘制开槽旁边的刻度编号微型徽章 (尺寸小巧精致，绝不遮挡开槽)
+          // 绘制开槽旁边的刻度编号 (纯数字，不带外圈，对齐时高亮)
           if (slot.labelPos) {
             const lx = slot.labelPos.x;
             const ly = slot.labelPos.y;
             ctx.save();
-            const badgeR = isAligned ? 6.5 : 5.2;
-            ctx.fillStyle = isAligned ? '#EF4444' : (isDone ? '#10B981' : 'rgba(255, 255, 255, 0.95)');
-            ctx.strokeStyle = isAligned ? '#DC2626' : (isDone ? '#059669' : '#64748B');
-            ctx.lineWidth = isAligned ? 1.5 : 1;
-            ctx.beginPath();
-            ctx.arc(lx, ly, badgeR, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-
-            // 标注数字 (微型清晰字体)
-            ctx.font = isAligned ? 'bold 8.5px Arial, sans-serif' : 'bold 7.5px Arial, sans-serif';
-            ctx.fillStyle = (isAligned || isDone) ? '#FFFFFF' : '#0F172A';
+            ctx.font = isAligned ? 'bold 10px Arial, sans-serif' : 'bold 8.5px Arial, sans-serif';
+            ctx.fillStyle = isAligned ? '#DC2626' : (isDone ? '#059669' : '#475569');
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(slot.tickId.toString(), lx, ly + 0.5);
+            ctx.fillText(slot.tickId.toString(), lx, ly);
             ctx.restore();
           }
         });

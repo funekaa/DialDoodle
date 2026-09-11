@@ -385,30 +385,30 @@ export const Geometry = {
   },
 
   /**
-   * 计算开槽旁边刻度编号的最佳标注位置 (紧贴端头吸附式，贴近开槽绝不漂浮混淆)
-   * 紧贴开槽端点外延 5~6px，一眼认清归属
+   * 计算开槽旁边刻度编号的最佳标注位置 (位于开槽外延安全区域，绝不压槽或混淆)
+   * 离开槽外沿保持清晰间距 (+2px)
    */
-  computeLabelPosition(points, offset = 6, maxRadius = 136) {
+  computeLabelPosition(points, offset = 8, maxRadius = 136) {
     if (!points || points.length === 0) return { x: 0, y: -60 };
     if (points.length === 1) return { x: points[0].x + offset, y: points[0].y };
 
     const candidates = [];
 
-    // 候选 1：起点端头沿切线向外紧贴延伸 6px
+    // 候选 1：起点端头沿切线向外延伸 (8px)
     const p0 = points[0];
     const p1 = points[1];
     const d01 = Math.hypot(p0.x - p1.x, p0.y - p1.y) || 1;
     const tan0 = { x: (p0.x - p1.x) / d01, y: (p0.y - p1.y) / d01 };
     candidates.push({ x: p0.x + tan0.x * offset, y: p0.y + tan0.y * offset });
 
-    // 候选 2：终点端头沿切线向外紧贴延伸 6px
+    // 候选 2：终点端头沿切线向外延伸 (8px)
     const pm = points[points.length - 1];
     const pm1 = points[points.length - 2];
     const dmm = Math.hypot(pm.x - pm1.x, pm.y - pm1.y) || 1;
     const tanM = { x: (pm.x - pm1.x) / dmm, y: (pm.y - pm1.y) / dmm };
     candidates.push({ x: pm.x + tanM.x * offset, y: pm.y + tanM.y * offset });
 
-    // 候选 3 & 4：中点外侧法线贴紧 8px (开槽宽度6，半径3，因此推8刚好位于轮廓外 2px)
+    // 候选 3 & 4：中点外侧法线推 10.5px (开槽宽度6，槽半径3，推10.5位于开槽轮廓外约 4.5px)
     const midIdx = Math.floor(points.length / 2);
     const pMid = points[midIdx];
     const pPrev = points[Math.max(0, midIdx - 1)];
@@ -418,10 +418,10 @@ export const Geometry = {
     const len = Math.hypot(dx, dy) || 1;
     const nx = -dy / len;
     const ny = dx / len;
-    candidates.push({ x: pMid.x + nx * 8.5, y: pMid.y + ny * 8.5 });
-    candidates.push({ x: pMid.x - nx * 8.5, y: pMid.y - ny * 8.5 });
+    candidates.push({ x: pMid.x + nx * 10.5, y: pMid.y + ny * 10.5 });
+    candidates.push({ x: pMid.x - nx * 10.5, y: pMid.y - ny * 10.5 });
 
-    // 筛选位于安全半径内且与折线保持紧贴 (距离 5.0 ~ 9.5px) 的最佳候选点
+    // 筛选位于安全半径内且与折线保持合适安全距离 (6.8 ~ 11.5px) 的最佳候选点
     for (const cand of candidates) {
       const r = Math.hypot(cand.x, cand.y);
       if (r < 24 || r > maxRadius) continue;
@@ -432,7 +432,7 @@ export const Geometry = {
         if (d < minDist) minDist = d;
       }
 
-      if (minDist >= 4.8 && minDist <= 9.5) {
+      if (minDist >= 6.8 && minDist <= 11.5) {
         return cand;
       }
     }
@@ -445,9 +445,9 @@ export const Geometry = {
   },
 
   /**
-   * 计算圆形开孔旁边的刻度编号微型徽章位置 (紧贴圆孔外沿，绝不压孔)
+   * 计算圆形开孔旁边的刻度编号位置 (离开圆孔外沿保持清晰间距，绝不压孔)
    */
-  computeHoleLabelPosition(center, radius, offset = 5.5, maxRadius = 146) {
+  computeHoleLabelPosition(center, radius, offset = 7.5, maxRadius = 146) {
     const angle = Math.atan2(center.y, center.x);
     const dist = radius + offset + 4.5;
     let lx = center.x + Math.cos(angle) * dist;

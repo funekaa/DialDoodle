@@ -773,7 +773,7 @@ export const Splitter = {
             y: diskPts.reduce((acc, p) => acc + p.y, 0) / diskPts.length
           };
           const hRadius = diskPts.radius || 4.2;
-          const labelPos = Geometry.computeHoleLabelPosition(hCenter, hRadius, 5.5, 146);
+          const labelPos = Geometry.computeHoleLabelPosition(hCenter, hRadius, 7.5, 146);
 
           return {
             isHole: true,
@@ -792,7 +792,7 @@ export const Splitter = {
             isHole: false,
             centerLine: diskPts,
             outline: Geometry.createSlotOutline(diskPts, slotWidth),
-            labelPos: Geometry.computeLabelPosition(diskPts, 5.5, 146),
+            labelPos: Geometry.computeLabelPosition(diskPts, 7.5, 146),
             tickId: item.tickId
           };
         }

@@ -157,28 +157,19 @@ export const Exporter = {
             }
           }
 
-          // 在开槽旁边清晰打印刻度编号微型徽标 (小巧精致，绝不压槽)
+          // 在开槽旁边清晰打印刻度编号 (纯数字，不带外圈，清爽无遮挡)
           if (slot.labelPos) {
             const lx = slot.labelPos.x * scale;
             const ly = slot.labelPos.y * scale;
             ctx.save();
             ctx.translate(centerX, centerY);
 
-            // 白色小圆形底带清晰深灰边框
-            ctx.fillStyle = '#FFFFFF';
-            ctx.strokeStyle = '#334155';
-            ctx.lineWidth = 1.6;
-            ctx.beginPath();
-            ctx.arc(lx, ly, 13, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-
-            // 刻度数字
-            ctx.font = 'bold 12.5px Arial, sans-serif';
-            ctx.fillStyle = '#0F172A';
+            // 刻度纯数字 (微粗清晰字体，不带外圈)
+            ctx.font = 'bold 13px Arial, sans-serif';
+            ctx.fillStyle = '#1E293B';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(slot.tickId.toString(), lx, ly + 0.5);
+            ctx.fillText(slot.tickId.toString(), lx, ly);
 
             ctx.restore();
           }
