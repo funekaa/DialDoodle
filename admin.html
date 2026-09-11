@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>转盘画 · 后台开槽纸生成管理 - DialDoodle Admin</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .admin-badge {
+      background: #4F46E5;
+      color: #FFFFFF;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-left: 8px;
+    }
+    .form-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .form-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+    .form-input {
+      padding: 7px 10px;
+      font-size: 13px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+    }
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .code-box {
+      background: #1E293B;
+      color: #F8FAFC;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      font-family: Consolas, monospace;
+      font-size: 11px;
+      overflow-x: auto;
+      margin-top: 6px;
+      line-height: 1.4;
+      white-space: pre;
+    }
+    .file-guide {
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #1E40AF;
+      line-height: 1.5;
+      margin-top: 10px;
+    }
+    .file-guide ol {
+      margin: 4px 0 0 16px;
+      padding: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 顶部导航栏 -->
+  <header class="navbar">
+    <div class="navbar-brand">
+      <div class="brand-logo">⚙️</div>
+      <div class="brand-info">
+        <h1 class="brand-title">
+          DialDoodle 开槽纸生成后台
+          <span class="admin-badge">ADMIN</span>
+        </h1>
+        <p class="brand-subtitle">简笔画图片/手绘骨架提取 · 非均匀防交叉开槽排布计算 · 导出 data.json</p>
+      </div>
+    </div>
+    <div class="navbar-actions">
+      <a href="index.html" class="btn btn-primary btn-sm" style="text-decoration: none;">
+        🎨 返回前台展示页
+      </a>
+    </div>
+  </header>
+
+  <!-- 主布局网格 -->
+  <main class="app-container">
+
+    <!-- 左侧：输入与算法计算 -->
+    <aside class="panel-left">
+
+      <!-- 步骤 1: 简笔画基本信息与输入 -->
+      <section class="card">
+        <div class="step-header">
+          <div class="step-num">1</div>
+          <h3 style="font-size: 15px; font-weight: 700; margin: 0;">图案信息与笔画录入</h3>
+        </div>
+
+        <!-- 基本元数据 -->
+        <div class="form-row">
+          <div class="form-group" style="flex: 1.2;">
+            <label class="form-label" for="inputDoodleId">图案文件夹 ID (英文/拼音)</label>
+            <input type="text" id="inputDoodleId" class="form-input" value="panda" placeholder="如 panda, cat">
+          </div>
+          <div class="form-group" style="flex: 0.8;">
+            <label class="form-label" for="inputDoodleIcon">图标 Emoji</label>
+            <input type="text" id="inputDoodleIcon" class="form-input" value="🐼" placeholder="如 🐼">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label class="form-label" for="inputDoodleName">图案显示名称</label>
+          <input type="text" id="inputDoodleName" class="form-input" value="呆萌大熊猫 🐼" placeholder="如 呆萌大熊猫 🐼">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label class="form-label" for="inputDoodleDesc">图案简短描述</label>
+          <input type="text" id="inputDoodleDesc" class="form-input" value="圆滚滚的大熊猫，治愈可爱" placeholder="如 圆滚滚的大熊猫">
+        </div>
+
+        <!-- 录入方式选项卡 -->
+        <div class="tab-header">
+          <button class="tab-btn active" data-tab="upload">📁 上传简笔画</button>
+          <button class="tab-btn" data-tab="doodle">✏️ 在线手绘</button>
+          <button class="tab-btn" data-tab="preset">🎨 载入内置线稿</button>
+        </div>
+
+        <!-- Tab 1: 上传图片 -->
+        <div class="tab-content" id="tab-upload">
+          <div class="upload-dropzone" id="dropzone">
+            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+            <div id="dropzonePrompt">
+              <span class="upload-icon">📷</span>
+              <p class="upload-text">点击或拖拽简笔画图片到此处</p>
+              <p class="upload-hint">支持黑白简笔画、卡通线稿，自动骨架化提取中心线</p>
+            </div>
+            <div id="dropzonePreview" style="display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+              <img id="uploadPreviewImg" style="max-width: 100%; max-height: 120px; object-fit: contain; border-radius: 4px; border: 1px solid #CBD5E1; background: #fff;">
+              <span id="uploadFileName" style="font-size: 11px; color: #64748B; word-break: break-all;"></span>
+            </div>
+          </div>
+          <div id="uploadActionBar" style="display: none; justify-content: center; margin-top: 8px;">
+            <button class="btn btn-outline btn-sm" id="btnChangeImage">🔄 重新选择图片</button>
+          </div>
+          <div class="upload-progress-container" id="uploadProgressContainer" style="display: none; margin-top: 10px;">
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill" id="uploadProgressBar" style="width: 0%;"></div>
+            </div>
+            <div class="progress-bar-text" id="uploadProgressText">正在处理...</div>
+          </div>
+        </div>
+
+        <!-- Tab 2: 在线涂鸦板 -->
+        <div class="tab-content" id="tab-doodle" style="display: none;">
+          <div class="doodle-container">
+            <canvas id="doodleCanvas" width="280" height="200"></canvas>
+            <div class="doodle-tools">
+              <button class="btn btn-outline btn-sm" id="btnClearDoodle">清空画布</button>
+              <button class="btn btn-primary btn-sm" id="btnApplyDoodle">确认并提取笔画</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: 内置线稿参考 -->
+        <div class="tab-content" id="tab-preset" style="display: none;">
+          <div class="preset-grid" id="adminPresetGrid">
+            <!-- 由 JS 填充内置预设 -->
+          </div>
+        </div>
+
+      </section>
+
+      <!-- 步骤 2: 开槽计算与排布参数 -->
+      <section class="card">
+        <div class="step-header">
+          <div class="step-num">2</div>
+          <h3 style="font-size: 15px; font-weight: 700; margin: 0;">开槽参数与排布计算</h3>
+        </div>
+
+        <!-- 刻度数量 -->
+        <div class="control-group">
+          <div class="control-label">
+            <span>刻度总数 (打散步数)</span>
+            <span class="val-tag" id="tickCountVal">12 个刻度</span>
+          </div>
+          <input type="range" class="range-slider" id="tickCountRange" min="6" max="24" step="1" value="12">
+          <div class="slider-marks">
+            <span>6 (粗放)</span>
+            <span>12 (标准推荐)</span>
+            <span>24 (精细多槽)</span>
+          </div>
+        </div>
+
+        <!-- 开槽安全间隔 -->
+        <div class="control-group">
+          <div class="control-label">
+            <span>开槽镂期间隔 (防纸张断裂)</span>
+            <span class="val-tag" id="clearanceVal">标准 (12px)</span>
+          </div>
+          <input type="range" class="range-slider" id="clearanceRange" min="8" max="20" step="2" value="12">
+          <div class="slider-marks">
+            <span>8px (紧凑)</span>
+            <span>12px (标准)</span>
+            <span>20px (高强度)</span>
+          </div>
+        </div>
+
+        <!-- 开槽宽度 -->
+        <div class="control-group">
+          <div class="control-label">
+            <span>镂空开槽宽度 (匹配笔芯)</span>
+            <span class="val-tag" id="slotWidthVal">适中 (3mm)</span>
+          </div>
+          <input type="range" class="range-slider" id="slotWidthRange" min="2" max="10" step="1" value="6">
+          <div class="slider-marks">
+            <span>2mm (细笔)</span>
+            <span>3mm (标准彩笔)</span>
+            <span>5mm (粗麦克笔)</span>
+          </div>
+        </div>
+
+        <!-- 重新计算按钮 -->
+        <button class="btn btn-primary" id="btnRegenerateAdmin" style="width: 100%; margin-top: 8px;">
+          ⚡ 重新计算防交叉旋转排布
+        </button>
+      </section>
+
+      <!-- 步骤 3: 导出与存入 doodles/ 目录指引 -->
+      <section class="card">
+        <div class="step-header">
+          <div class="step-num">3</div>
+          <h3 style="font-size: 15px; font-weight: 700; margin: 0;">一键导出与文件入库</h3>
+        </div>
+
+        <button class="btn btn-success" id="btnDownloadDataJson" style="width: 100%; padding: 10px; font-size: 14px; font-weight: 700;">
+          💾 下载该简笔画 data.json
+        </button>
+
+        <div class="file-guide">
+          <strong>📂 存入指引 (秒级生效无需重启)：</strong>
+          <ol>
+            <li>在项目 <code>doodles/</code> 目录下新建文件夹：<br><strong id="guideFolderText">doodles/panda/</strong></li>
+            <li>将下载的 <code>data.json</code> 放入该文件夹。</li>
+            <li>复制下方配置片段追加到 <code>doodles/manifest.json</code>：</li>
+          </ol>
+        </div>
+
+        <div class="code-box" id="manifestSnippetCode">
+// 计算完成后在此生成 manifest.json 配置片段
+        </div>
+
+        <button class="btn btn-outline btn-sm" id="btnCopySnippet" style="width: 100%; margin-top: 6px;">
+          📋 复制配置片段到剪贴板
+        </button>
+      </section>
+
+    </aside>
+
+    <!-- 中间：模拟解密与验证 -->
+    <section class="simulator-section">
+      <div class="simulator-card">
+        
+        <!-- 状态栏 -->
+        <div class="simulator-status-bar">
+          <div class="status-left">
+            <div class="status-indicator" id="statusIndicator"></div>
+            <div class="status-text" id="statusText">等待计算或载入笔画...</div>
+          </div>
+          <div class="status-right" id="statusProgress">
+            完成进度: 0 / 12
+          </div>
+        </div>
+
+        <!-- 模拟器画布容器 -->
+        <div class="simulator-canvas-wrapper">
+          <canvas id="simCanvas" width="560" height="540"></canvas>
+          <div class="drag-hint">
+            <span>👆 拖动圆盘旋转验证开槽对齐效果</span>
+          </div>
+        </div>
+
+        <!-- 刻度快速导航指示胶囊 -->
+        <div class="tick-pills-scroll" id="tickPillsContainer"></div>
+
+        <!-- 模拟操作按钮群 -->
+        <div class="btn-row" style="margin-top: 14px;">
+          <button class="btn btn-outline" id="btnPrevTick">⏮️ 上一刻度</button>
+          <button class="btn btn-primary" id="btnDrawStroke">✏️ 在当前开槽画线</button>
+          <button class="btn btn-outline" id="btnNextTick">下一刻度 ⏭️</button>
+          <button class="btn btn-success" id="btnAutoPlay">▶️ 自动解密演示</button>
+          <button class="btn btn-outline" id="btnToggleBPaper">👁️ 移开/盖上 B 纸</button>
+          <button class="btn btn-outline" id="btnClearSim">🧹 清空</button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 右侧：图纸预览与验证 -->
+    <aside class="panel-export">
+      <div class="card">
+        <h3 class="card-title">
+          <span>图纸预览与校验</span>
+          <span class="badge">A4 规范</span>
+        </h3>
+
+        <div class="preview-cards">
+          
+          <!-- B 纸预览卡片 -->
+          <div class="preview-box print-page" id="bPaperBox">
+            <h4>
+              <span>📄 B 纸 (圆形转盘开槽纸)</span>
+              <button class="btn btn-outline btn-sm" id="btnDownloadB">下载 PNG</button>
+            </h4>
+            <canvas id="bPaperCanvas"></canvas>
+            <p style="font-size: 11px; color: #64748B; margin-top: 6px;">验证开槽是否错开、有无交叉、圆孔是否清晰</p>
+          </div>
+
+          <!-- A 纸预览卡片 -->
+          <div class="preview-box print-page" id="aPaperBox">
+            <h4>
+              <span>📋 A 纸 (底部基准画纸)</span>
+              <button class="btn btn-outline btn-sm" id="btnDownloadA">下载 PNG</button>
+            </h4>
+            <canvas id="aPaperCanvas"></canvas>
+          </div>
+
+        </div>
+
+        <div style="margin-top: 18px;">
+          <button class="btn btn-outline" id="btnPrintAll" style="width: 100%; padding: 10px;">
+            🖨️ 打印当前开槽图纸
+          </button>
+        </div>
+
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- 引入管理员脚本 -->
+  <script type="module" src="js/admin.js"></script>
+
+</body>
+</html>

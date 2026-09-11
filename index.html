@@ -18,6 +18,7 @@
       </div>
     </div>
     <div class="header-actions">
+      <a href="admin.html" class="btn btn-outline" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">⚙️ 开槽纸生成后台</a>
       <button class="btn btn-outline" id="btnHowToPlay">💡 玩法说明</button>
       <button class="btn btn-primary" id="btnQuickPrint">🖨️ 打印 A4 图纸</button>
     </div>
@@ -26,106 +27,45 @@
   <!-- 主体工作区 -->
   <main class="app-container">
 
-    <!-- 左侧：参数与图案输入面板 -->
+    <!-- 左侧：简笔画图案选择与绘图设置面板 (纯展示与解密端，零计算负担) -->
     <aside class="panel-control">
       
-      <!-- 步骤 1: 图案选择 -->
+      <!-- 简笔画示例馆 -->
       <section class="card">
         <h3 class="card-title">
-          <span>1. 选择或绘制简笔画</span>
-          <span class="badge">图案来源</span>
+          <span>🎨 简笔画示例馆</span>
+          <span class="badge" id="totalDoodlesBadge">精选</span>
         </h3>
+        <p style="font-size: 12px; color: #64748B; margin-bottom: 12px;">
+          所有示例已预计算高精度零碰撞开槽，点击即刻解密！
+        </p>
 
-        <!-- Tab 切换 -->
-        <div class="tab-header">
-          <button class="tab-btn active" data-tab="preset">经典预设</button>
-          <button class="tab-btn" data-tab="doodle">随手涂鸦</button>
-          <button class="tab-btn" data-tab="upload">上传线稿</button>
-        </div>
-
-        <!-- 预设选择区 -->
-        <div class="tab-content" id="tab-preset">
-          <div class="preset-grid" id="presetContainer">
-            <!-- 由 JS 动态渲染预设列表 -->
-          </div>
-        </div>
-
-        <!-- 涂鸦画板区 -->
-        <div class="tab-content" id="tab-doodle" style="display: none;">
-          <div class="doodle-container">
-            <canvas id="doodleCanvas" width="280" height="200"></canvas>
-            <div class="doodle-tools">
-              <button class="btn btn-outline btn-sm" id="btnClearDoodle">清空白板</button>
-              <button class="btn btn-primary btn-sm" id="btnApplyDoodle">生成此涂鸦</button>
-            </div>
-            <p style="font-size: 11px; color: #94A3B8; margin-top: 6px;">请在白色区域内随手画一个简笔画</p>
-          </div>
-        </div>
-
-        <!-- 上传图片区 (框内纯净全景展示原图，绝不遮挡) -->
-        <div class="tab-content" id="tab-upload" style="display: none;">
-          <input type="file" id="fileInput" accept="image/*" style="display: none;">
-          
-          <div class="upload-dropzone" id="dropzone">
-            <!-- 默认未上传提示 -->
-            <div id="dropzonePrompt">
-              <div style="font-size: 32px; margin-bottom: 6px;">📁</div>
-              <p style="font-size: 13px; font-weight: 600;">点击或拖拽简笔画图片到此处</p>
-              <p style="font-size: 11px; color: #94A3B8; margin-top: 4px;">建议上传清晰的白底黑色线条简笔画</p>
-            </div>
-
-            <!-- 上传后在此框内全幅纯净呈现原图，绝不遮挡图片任何部位 -->
-            <div id="dropzonePreview" style="display: none;">
-              <img id="uploadPreviewImg" src="" alt="已导入简笔画原图">
-            </div>
-          </div>
-
-          <!-- 移到框外的独立信息与更换按钮操作栏，绝不挡住原图 -->
-          <div class="upload-action-bar" id="uploadActionBar" style="display: none;">
-            <span class="upload-file-tag" id="uploadFileName">已上传图片</span>
-            <button type="button" class="btn btn-outline btn-sm" id="btnChangeImage">更换图片</button>
-          </div>
-
-          <!-- 上传与分析进度条 -->
-          <div class="upload-progress-container" id="uploadProgressContainer" style="display: none;">
-            <div class="progress-bar-track">
-              <div class="progress-bar-fill" id="uploadProgressBar" style="width: 0%;"></div>
-            </div>
-            <div class="progress-bar-text" id="uploadProgressText">准备就绪...</div>
-          </div>
+        <!-- 示例卡片网格 -->
+        <div class="preset-grid" id="presetContainer">
+          <!-- 由 JS 动态读取 doodles/ 渲染示例卡片 -->
         </div>
       </section>
 
-      <!-- 步骤 2: 刻度与转盘参数 -->
+      <!-- 绘图偏好与规格 -->
       <section class="card">
         <h3 class="card-title">
-          <span>2. 转盘几何打散配置</span>
-          <span class="badge">算法参数</span>
+          <span>✏️ 绘图设置与规格</span>
         </h3>
 
-        <!-- 刻度数量 (10 到 20 之间精准可调) -->
-        <div class="control-group">
+        <!-- 当前图案与刻度摘要 -->
+        <div class="control-group" style="margin-bottom: 14px;">
           <div class="control-label">
-            <span>刻度总数 (N)</span>
+            <span>当前选中图案</span>
+            <span class="val-tag" id="currentDoodleName">呆萌小熊 🐻</span>
+          </div>
+          <div class="control-label" style="margin-top: 8px;">
+            <span>刻度总数</span>
             <span class="val-tag" id="tickCountVal">12 个刻度</span>
           </div>
-          <input type="range" id="tickCountRange" min="10" max="20" step="1" value="12">
-          <p style="font-size: 11px; color: #64748B; margin-top: 4px;">
-            在 10 ~ 20 之间精确调整，开槽将严格按此刻度数精准排布
-          </p>
-        </div>
-
-        <!-- 开槽宽度 -->
-        <div class="control-group">
-          <div class="control-label">
-            <span>开槽宽度 (镂空缝隙)</span>
-            <span class="val-tag" id="slotWidthVal">适中 (3mm)</span>
-          </div>
-          <input type="range" id="slotWidthRange" min="2" max="10" step="1" value="6">
         </div>
 
         <!-- 画笔颜色 -->
-        <div class="control-group">
+        <div class="control-group" style="margin-bottom: 0;">
           <div class="control-label">
             <span>模拟彩笔颜色</span>
           </div>
@@ -136,10 +76,6 @@
             <div class="radio-pill" data-color="#334155" style="color: #334155;">铅笔灰</div>
           </div>
         </div>
-
-        <button class="btn btn-primary" id="btnRegenerate" style="width: 100%;">
-          🔄 重新计算非均匀防交叉排布
-        </button>
       </section>
 
       <!-- 玩法说明卡片 -->

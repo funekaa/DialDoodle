@@ -1,0 +1,58 @@
+[
+  {
+    "id": "bear",
+    "name": "呆萌小熊 🐻",
+    "icon": "🐻",
+    "description": "圆滚滚的小熊，经典可爱",
+    "folder": "bear",
+    "tickCount": 12
+  },
+  {
+    "id": "bunny",
+    "name": "软萌小兔 🐰",
+    "icon": "🐰",
+    "description": "垂耳萌兔，线条温柔灵动",
+    "folder": "bunny",
+    "tickCount": 12
+  },
+  {
+    "id": "puppy",
+    "name": "俏皮小狗 🐶",
+    "icon": "🐶",
+    "description": "吐舌头的小狗，活泼治愈",
+    "folder": "puppy",
+    "tickCount": 12
+  },
+  {
+    "id": "dino",
+    "name": "呆萌小恐龙 🦖",
+    "icon": "🦖",
+    "description": "小锯齿背甲，萌态十足",
+    "folder": "dino",
+    "tickCount": 12
+  },
+  {
+    "id": "car",
+    "name": "嘟嘟小汽车 🚗",
+    "icon": "🚗",
+    "description": "童趣小轿车，男宝最爱",
+    "folder": "car",
+    "tickCount": 12
+  },
+  {
+    "id": "snowman",
+    "name": "微笑雪人 ⛄",
+    "icon": "⛄",
+    "description": "冬天的小雪人，圆圆眼睛与纽扣",
+    "folder": "snowman",
+    "tickCount": 12
+  },
+  {
+    "id": "clock",
+    "name": "复古闹钟 ⏰",
+    "icon": "⏰",
+    "description": "滴答小闹钟，双铃与圆圆小脚",
+    "folder": "clock",
+    "tickCount": 12
+  }
+]
