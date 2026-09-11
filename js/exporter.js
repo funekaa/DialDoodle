@@ -81,12 +81,16 @@ export const Exporter = {
         ctx.lineTo(radius, 0);
         ctx.stroke();
 
-        // 刻度编号
+        // 刻度编号 (旋转到正上方对准线时数字朝上)
+        ctx.save();
+        ctx.translate(radius - 44, 0);
+        ctx.rotate(Math.PI / 2);
         ctx.font = 'bold 26px Arial, sans-serif';
         ctx.fillStyle = '#0F172A';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(tick.id.toString(), radius - 44, 0);
+        ctx.fillText(tick.id.toString(), 0, 0);
+        ctx.restore();
 
         ctx.restore();
       });
@@ -157,19 +161,23 @@ export const Exporter = {
             }
           }
 
-          // 在开槽旁边清晰打印刻度编号 (纯数字，不带外圈，清爽无遮挡)
+          // 在开槽旁边清晰打印刻度编号 (纯数字，不带外圈；旋转到该刻度时数字正向上)
           if (slot.labelPos) {
             const lx = slot.labelPos.x * scale;
             const ly = slot.labelPos.y * scale;
+            const tickAngleDeg = group.angleDeg !== undefined ? group.angleDeg : (processedData.ticks.find(t => t.id === slot.tickId)?.angleDeg || 0);
+
             ctx.save();
-            ctx.translate(centerX, centerY);
+            ctx.translate(centerX + lx, centerY + ly);
+            // 当圆盘旋转到该刻度对准上方时，预先顺时针旋转 +tickAngleDeg，即可在该刻度下正好向上！
+            ctx.rotate(Geometry.degToRad(tickAngleDeg));
 
             // 刻度纯数字 (微粗清晰字体，不带外圈)
             ctx.font = 'bold 13px Arial, sans-serif';
             ctx.fillStyle = '#1E293B';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(slot.tickId.toString(), lx, ly);
+            ctx.fillText(slot.tickId.toString(), 0, 0);
 
             ctx.restore();
           }

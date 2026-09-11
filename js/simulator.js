@@ -561,12 +561,16 @@ export const Simulator = {
         ctx.lineTo(radius, 0);
         ctx.stroke();
 
-        // 刻度序号文字
+        // 刻度序号文字 (对齐正上方时正向朝上)
+        ctx.save();
+        ctx.translate(radius - 24, 0);
+        ctx.rotate(Math.PI / 2);
         ctx.font = isAligned ? 'bold 14px system-ui' : '12px system-ui';
         ctx.fillStyle = isAligned ? '#EF4444' : (isDone ? '#10B981' : '#1E293B');
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(tick.id.toString(), radius - 24, 0);
+        ctx.fillText(tick.id.toString(), 0, 0);
+        ctx.restore();
 
         ctx.restore();
       });
@@ -650,16 +654,21 @@ export const Simulator = {
             }
           }
 
-          // 绘制开槽旁边的刻度编号 (纯数字，不带外圈，对齐时高亮)
+          // 绘制开槽旁边的刻度编号 (纯数字，不带外圈；旋转对齐时自动正向朝上)
           if (slot.labelPos) {
             const lx = slot.labelPos.x;
             const ly = slot.labelPos.y;
+            const tickAngleDeg = group.angleDeg !== undefined ? group.angleDeg : (this.processedData.ticks.find(t => t.id === slot.tickId)?.angleDeg || 0);
+
             ctx.save();
-            ctx.font = isAligned ? 'bold 10px Arial, sans-serif' : 'bold 8.5px Arial, sans-serif';
+            ctx.translate(lx, ly);
+            ctx.rotate(Geometry.degToRad(tickAngleDeg));
+
+            ctx.font = isAligned ? 'bold 10.5px Arial, sans-serif' : 'bold 8.5px Arial, sans-serif';
             ctx.fillStyle = isAligned ? '#DC2626' : (isDone ? '#059669' : '#475569');
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(slot.tickId.toString(), lx, ly);
+            ctx.fillText(slot.tickId.toString(), 0, 0);
             ctx.restore();
           }
         });
