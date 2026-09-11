@@ -1,15 +1,17 @@
 /**
  * 旋转解密绘图盘 - 用户展示端主控制器 (App Controller)
- * 只负责展示预设简笔画开槽纸，零计算秒级呈现
+ * 只负责展示预设简笔画开槽纸，支持按分类浏览，零计算秒级呈现
  */
 
 import { Simulator } from './simulator.js';
 import { Exporter } from './exporter.js';
-import { DoodleManifest, PreloadedDoodles } from '../doodles/index.js';
+import { DoodleCategories, DoodleManifest, PreloadedDoodles } from '../doodles/index.js';
 
 class App {
   constructor() {
-    this.manifest = [];
+    this.categories = [];
+    this.doodles = [];
+    this.selectedCategory = 'all';
     this.currentDoodle = null;
     this.processedData = null;
     this.slotWidth = 6;
@@ -26,38 +28,89 @@ class App {
   }
 
   /**
-   * 加载简笔画预设清单
+   * 加载分类与简笔画预设清单
    */
   async loadDoodles() {
-    // 优先尝试通过 fetch 读取 manifest.json，若在 file:// 或离线环境受阻则降级使用 index.js 内置的 DoodleManifest
+    // 优先尝试通过 fetch 读取 manifest.json，若在 file:// 或离线环境受阻则降级使用 index.js 内置数据
     try {
       const resp = await fetch('doodles/manifest.json');
       if (resp.ok) {
-        this.manifest = await resp.json();
+        const data = await resp.json();
+        if (data.categories && data.doodles) {
+          this.categories = data.categories;
+          this.doodles = data.doodles;
+        } else if (Array.isArray(data)) {
+          this.categories = DoodleCategories;
+          this.doodles = data;
+        }
       } else {
-        this.manifest = DoodleManifest;
+        this.categories = DoodleCategories;
+        this.doodles = DoodleManifest;
       }
     } catch (e) {
-      this.manifest = DoodleManifest;
+      this.categories = DoodleCategories;
+      this.doodles = DoodleManifest;
     }
 
+    const badge = document.getElementById('totalDoodlesBadge');
+    if (badge) badge.textContent = `${this.doodles.length} 款`;
+
+    this.renderCategoryPills();
     this.renderDoodleCards();
 
     // 默认加载第一个简笔画
-    if (this.manifest && this.manifest.length > 0) {
-      await this.selectDoodle(this.manifest[0]);
+    if (this.doodles && this.doodles.length > 0) {
+      await this.selectDoodle(this.doodles[0]);
     }
   }
 
   /**
-   * 渲染简笔画选择卡片
+   * 渲染分类标签栏
+   */
+  renderCategoryPills() {
+    const container = document.getElementById('categoryPillsContainer');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const cats = this.categories && this.categories.length > 0 ? this.categories : [
+      { id: 'all', name: '全部 🌟' }
+    ];
+
+    cats.forEach(cat => {
+      const pill = document.createElement('div');
+      pill.className = `category-pill ${this.selectedCategory === cat.id ? 'active' : ''}`;
+      pill.textContent = cat.name;
+      pill.dataset.catId = cat.id;
+
+      pill.addEventListener('click', () => {
+        if (this.selectedCategory === cat.id) return;
+        this.selectedCategory = cat.id;
+        document.querySelectorAll('.category-pill').forEach(p => p.classList.toggle('active', p.dataset.catId === cat.id));
+        this.renderDoodleCards();
+      });
+
+      container.appendChild(pill);
+    });
+  }
+
+  /**
+   * 渲染当前分类下的简笔画选择卡片
    */
   renderDoodleCards() {
     const container = document.getElementById('presetContainer');
     if (!container) return;
     container.innerHTML = '';
 
-    this.manifest.forEach(item => {
+    const filtered = this.selectedCategory === 'all'
+      ? this.doodles
+      : this.doodles.filter(d => d.category === this.selectedCategory);
+
+    if (filtered.length === 0) {
+      container.innerHTML = '<div style="grid-column: span 2; text-align: center; color: #94A3B8; font-size: 12px; padding: 20px 0;">该分类暂无简笔画</div>';
+      return;
+    }
+
+    filtered.forEach(item => {
       const card = document.createElement('div');
       card.className = `preset-card ${this.currentDoodle && this.currentDoodle.id === item.id ? 'active' : ''}`;
       card.dataset.id = item.id;
@@ -67,7 +120,7 @@ class App {
         <div class="card-body">
           <div class="card-name">${item.name}</div>
           <div class="card-desc">${item.description || ''}</div>
-          <div class="card-badge">${item.tickCount || 12} 刻度</div>
+          <div class="card-badge">${item.tickCount || 12} 刻度 · ${item.categoryName || '经典'}</div>
         </div>
       `;
 
@@ -81,7 +134,7 @@ class App {
   }
 
   /**
-   * 选中简笔画并加载其专属的预计算开槽数据文件
+   * 选中简笔画并加载其所属分类文件夹下的独立 json 文件
    */
   async selectDoodle(item) {
     this.currentDoodle = item;
@@ -93,14 +146,14 @@ class App {
 
     // 更新界面信息
     const nameEl = document.getElementById('currentDoodleName');
-    if (nameEl) nameEl.textContent = item.name;
+    if (nameEl) nameEl.textContent = `${item.name} (${item.categoryName || ''})`;
 
-    // 读取该简笔画的 data.json
+    // 读取分类下的具体 json 文件 (如 doodles/animals/bear.json)
     let doodleData = null;
-    const folder = item.folder || item.id;
+    const filePath = item.filePath || (item.category ? `${item.category}/${item.id}.json` : `${item.id}.json`);
 
     try {
-      const resp = await fetch(`doodles/${folder}/data.json`);
+      const resp = await fetch(`doodles/${filePath}`);
       if (resp.ok) {
         doodleData = await resp.json();
       }
@@ -113,7 +166,7 @@ class App {
     }
 
     if (!doodleData || !doodleData.processedData) {
-      alert(`无法加载 ${item.name} 的开槽纸数据，请检查 doodles/${folder}/data.json 文件。`);
+      alert(`无法加载 ${item.name} 的开槽纸数据，请检查 doodles/${filePath} 文件。`);
       return;
     }
 

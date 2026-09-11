@@ -4879,5 +4879,9 @@
       }
     ],
     "totalFragments": 12
-  }
+  },
+  "category": "animals",
+  "categoryName": "萌宠动物 🐾",
+  "fileName": "bear.json",
+  "filePath": "animals/bear.json"
 }

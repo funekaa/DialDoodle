@@ -1,58 +1,107 @@
-[
-  {
-    "id": "bear",
-    "name": "呆萌小熊 🐻",
-    "icon": "🐻",
-    "description": "圆滚滚的小熊，经典可爱",
-    "folder": "bear",
-    "tickCount": 12
-  },
-  {
-    "id": "bunny",
-    "name": "软萌小兔 🐰",
-    "icon": "🐰",
-    "description": "垂耳萌兔，线条温柔灵动",
-    "folder": "bunny",
-    "tickCount": 12
-  },
-  {
-    "id": "puppy",
-    "name": "俏皮小狗 🐶",
-    "icon": "🐶",
-    "description": "吐舌头的小狗，活泼治愈",
-    "folder": "puppy",
-    "tickCount": 12
-  },
-  {
-    "id": "dino",
-    "name": "呆萌小恐龙 🦖",
-    "icon": "🦖",
-    "description": "小锯齿背甲，萌态十足",
-    "folder": "dino",
-    "tickCount": 12
-  },
-  {
-    "id": "car",
-    "name": "嘟嘟小汽车 🚗",
-    "icon": "🚗",
-    "description": "童趣小轿车，男宝最爱",
-    "folder": "car",
-    "tickCount": 12
-  },
-  {
-    "id": "snowman",
-    "name": "微笑雪人 ⛄",
-    "icon": "⛄",
-    "description": "冬天的小雪人，圆圆眼睛与纽扣",
-    "folder": "snowman",
-    "tickCount": 12
-  },
-  {
-    "id": "clock",
-    "name": "复古闹钟 ⏰",
-    "icon": "⏰",
-    "description": "滴答小闹钟，双铃与圆圆小脚",
-    "folder": "clock",
-    "tickCount": 12
-  }
-]
+{
+  "categories": [
+    {
+      "id": "all",
+      "name": "全部 🌟"
+    },
+    {
+      "id": "animals",
+      "name": "萌宠动物 🐾"
+    },
+    {
+      "id": "toys",
+      "name": "玩具交通 🚗"
+    },
+    {
+      "id": "daily",
+      "name": "生活用品 ⏰"
+    },
+    {
+      "id": "still_life",
+      "name": "趣味静物 ⛄"
+    },
+    {
+      "id": "plants",
+      "name": "花草植物 🌿"
+    }
+  ],
+  "doodles": [
+    {
+      "id": "bear",
+      "name": "呆萌小熊 🐻",
+      "icon": "🐻",
+      "description": "圆滚滚的小熊，经典可爱",
+      "category": "animals",
+      "categoryName": "萌宠动物 🐾",
+      "fileName": "bear.json",
+      "filePath": "animals/bear.json",
+      "tickCount": 12
+    },
+    {
+      "id": "bunny",
+      "name": "软萌小兔 🐰",
+      "icon": "🐰",
+      "description": "垂耳萌兔，线条温柔灵动",
+      "category": "animals",
+      "categoryName": "萌宠动物 🐾",
+      "fileName": "bunny.json",
+      "filePath": "animals/bunny.json",
+      "tickCount": 12
+    },
+    {
+      "id": "puppy",
+      "name": "俏皮小狗 🐶",
+      "icon": "🐶",
+      "description": "吐舌头的小狗，活泼治愈",
+      "category": "animals",
+      "categoryName": "萌宠动物 🐾",
+      "fileName": "puppy.json",
+      "filePath": "animals/puppy.json",
+      "tickCount": 12
+    },
+    {
+      "id": "dino",
+      "name": "呆萌小恐龙 🦖",
+      "icon": "🦖",
+      "description": "小锯齿背甲，萌态十足",
+      "category": "animals",
+      "categoryName": "萌宠动物 🐾",
+      "fileName": "dino.json",
+      "filePath": "animals/dino.json",
+      "tickCount": 12
+    },
+    {
+      "id": "car",
+      "name": "嘟嘟小汽车 🚗",
+      "icon": "🚗",
+      "description": "童趣小轿车，男宝最爱",
+      "category": "toys",
+      "categoryName": "玩具交通 🚗",
+      "fileName": "car.json",
+      "filePath": "toys/car.json",
+      "tickCount": 12
+    },
+    {
+      "id": "clock",
+      "name": "复古闹钟 ⏰",
+      "icon": "⏰",
+      "description": "滴答小闹钟，双铃与圆圆小脚",
+      "category": "daily",
+      "categoryName": "生活用品 ⏰",
+      "fileName": "clock.json",
+      "filePath": "daily/clock.json",
+      "tickCount": 12
+    },
+    {
+      "id": "snowman",
+      "name": "微笑雪人 ⛄",
+      "icon": "⛄",
+      "description": "冬天的小雪人，圆圆眼睛与纽扣",
+      "category": "still_life",
+      "categoryName": "趣味静物 ⛄",
+      "fileName": "snowman.json",
+      "filePath": "still_life/snowman.json",
+      "tickCount": 12
+    }
+  ]
+}

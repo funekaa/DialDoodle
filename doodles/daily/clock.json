@@ -3699,5 +3699,9 @@
       }
     ],
     "totalFragments": 12
-  }
+  },
+  "category": "daily",
+  "categoryName": "生活用品 ⏰",
+  "fileName": "clock.json",
+  "filePath": "daily/clock.json"
 }

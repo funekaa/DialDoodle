@@ -3997,5 +3997,9 @@
       }
     ],
     "totalFragments": 12
-  }
+  },
+  "category": "still_life",
+  "categoryName": "趣味静物 ⛄",
+  "fileName": "snowman.json",
+  "filePath": "still_life/snowman.json"
 }

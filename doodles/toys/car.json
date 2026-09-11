@@ -3349,5 +3349,9 @@
       }
     ],
     "totalFragments": 12
-  }
+  },
+  "category": "toys",
+  "categoryName": "玩具交通 🚗",
+  "fileName": "car.json",
+  "filePath": "toys/car.json"
 }

@@ -53,10 +53,19 @@ class AdminApp {
         this.currentStrokes = preset.strokes;
 
         // 填充元数据输入框
+        const catSelect = document.getElementById('inputDoodleCategory');
         const idInput = document.getElementById('inputDoodleId');
         const nameInput = document.getElementById('inputDoodleName');
         const iconInput = document.getElementById('inputDoodleIcon');
         const descInput = document.getElementById('inputDoodleDesc');
+
+        const catMap = {
+          bear: 'animals', bunny: 'animals', puppy: 'animals', dino: 'animals',
+          car: 'toys', clock: 'daily', snowman: 'still_life'
+        };
+        if (catSelect && catMap[preset.id]) {
+          catSelect.value = catMap[preset.id];
+        }
         if (idInput) idInput.value = preset.id;
         if (nameInput) nameInput.value = preset.name;
         if (iconInput) iconInput.value = preset.name.match(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF]/)?.[0] || '🎨';
@@ -170,30 +179,42 @@ class AdminApp {
   }
 
   updateGuideAndSnippet() {
+    const catSelect = document.getElementById('inputDoodleCategory');
     const idInput = document.getElementById('inputDoodleId');
     const nameInput = document.getElementById('inputDoodleName');
     const iconInput = document.getElementById('inputDoodleIcon');
     const descInput = document.getElementById('inputDoodleDesc');
 
-    const doodleId = (idInput ? idInput.value.trim() : 'custom') || 'custom';
+    const category = (catSelect ? catSelect.value : 'animals') || 'animals';
+    const categoryName = catSelect ? (catSelect.options[catSelect.selectedIndex]?.dataset.name || '萌宠动物 🐾') : '萌宠动物 🐾';
+    const doodleId = (idInput ? idInput.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_') : 'custom') || 'custom';
     const doodleName = (nameInput ? nameInput.value.trim() : '简笔画') || '简笔画';
     const doodleIcon = (iconInput ? iconInput.value.trim() : '🎨') || '🎨';
     const doodleDesc = (descInput ? descInput.value.trim() : '') || '精选趣味开槽纸';
     const actualTicks = this.processedData ? this.processedData.ticks.length : this.tickCount;
 
+    const fileName = `${doodleId}.json`;
+    const filePath = `${category}/${fileName}`;
+
+    const btnFileLabel = document.getElementById('downloadBtnFileName');
+    if (btnFileLabel) btnFileLabel.textContent = fileName;
+
     const folderEl = document.getElementById('guideFolderText');
-    if (folderEl) folderEl.textContent = `doodles/${doodleId}/`;
+    if (folderEl) folderEl.textContent = `doodles/${filePath}`;
 
     const snippetObj = {
       id: doodleId,
       name: doodleName,
       icon: doodleIcon,
       description: doodleDesc,
-      folder: doodleId,
+      category: category,
+      categoryName: categoryName,
+      fileName: fileName,
+      filePath: filePath,
       tickCount: actualTicks
     };
 
-    const snippetText = `// 追加至 doodles/manifest.json 的数组中:\n` + JSON.stringify(snippetObj, null, 2) + `,`;
+    const snippetText = `// 追加至 doodles/manifest.json 的 "doodles" 数组中:\n` + JSON.stringify(snippetObj, null, 2) + `,`;
     const snippetEl = document.getElementById('manifestSnippetCode');
     if (snippetEl) snippetEl.textContent = snippetText;
   }
@@ -241,9 +262,12 @@ class AdminApp {
       });
     }
 
-    ['inputDoodleId', 'inputDoodleName', 'inputDoodleIcon', 'inputDoodleDesc'].forEach(id => {
+    ['inputDoodleCategory', 'inputDoodleId', 'inputDoodleName', 'inputDoodleIcon', 'inputDoodleDesc'].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.addEventListener('input', () => this.updateGuideAndSnippet());
+      if (el) {
+        el.addEventListener('input', () => this.updateGuideAndSnippet());
+        el.addEventListener('change', () => this.updateGuideAndSnippet());
+      }
     });
 
     const btnRegen = document.getElementById('btnRegenerateAdmin');
@@ -345,17 +369,27 @@ class AdminApp {
     const btnCopy = document.getElementById('btnCopySnippet');
     if (btnCopy) {
       btnCopy.addEventListener('click', () => {
+        const catSelect = document.getElementById('inputDoodleCategory');
         const idInput = document.getElementById('inputDoodleId');
         const nameInput = document.getElementById('inputDoodleName');
         const iconInput = document.getElementById('inputDoodleIcon');
         const descInput = document.getElementById('inputDoodleDesc');
 
+        const category = (catSelect ? catSelect.value : 'animals') || 'animals';
+        const categoryName = catSelect ? (catSelect.options[catSelect.selectedIndex]?.dataset.name || '萌宠动物 🐾') : '萌宠动物 🐾';
+        const doodleId = (idInput?.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_') || 'custom');
+        const fileName = `${doodleId}.json`;
+        const filePath = `${category}/${fileName}`;
+
         const snippetObj = {
-          id: (idInput?.value.trim() || 'custom'),
+          id: doodleId,
           name: (nameInput?.value.trim() || '简笔画'),
           icon: (iconInput?.value.trim() || '🎨'),
           description: (descInput?.value.trim() || '精选趣味开槽纸'),
-          folder: (idInput?.value.trim() || 'custom'),
+          category: category,
+          categoryName: categoryName,
+          fileName: fileName,
+          filePath: filePath,
           tickCount: this.processedData?.ticks?.length || this.tickCount
         };
 
@@ -630,22 +664,32 @@ class AdminApp {
           return;
         }
 
+        const catSelect = document.getElementById('inputDoodleCategory');
         const idInput = document.getElementById('inputDoodleId');
         const nameInput = document.getElementById('inputDoodleName');
         const iconInput = document.getElementById('inputDoodleIcon');
         const descInput = document.getElementById('inputDoodleDesc');
 
-        const doodleId = (idInput?.value.trim() || 'custom');
+        const category = (catSelect ? catSelect.value : 'animals') || 'animals';
+        const categoryName = catSelect ? (catSelect.options[catSelect.selectedIndex]?.dataset.name || '萌宠动物 🐾') : '萌宠动物 🐾';
+        const doodleId = (idInput?.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_') || 'custom');
         const doodleName = (nameInput?.value.trim() || '简笔画');
         const doodleIcon = (iconInput?.value.trim() || '🎨');
         const doodleDesc = (descInput?.value.trim() || '精选趣味开槽纸');
         const actualTicks = this.processedData.ticks.length;
+
+        const fileName = `${doodleId}.json`;
+        const filePath = `${category}/${fileName}`;
 
         const exportPayload = {
           id: doodleId,
           name: doodleName,
           icon: doodleIcon,
           description: doodleDesc,
+          category: category,
+          categoryName: categoryName,
+          fileName: fileName,
+          filePath: filePath,
           tickCount: actualTicks,
           slotWidth: this.slotWidth,
           safeClearance: this.safeClearance,
@@ -658,7 +702,7 @@ class AdminApp {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'data.json';
+        a.download = fileName;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

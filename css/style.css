@@ -166,6 +166,38 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+/* 分类标签栏 */
+.category-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.category-pill {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 16px;
+  background: #F1F5F9;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  user-select: none;
+}
+
+.category-pill:hover {
+  background: #E2E8F0;
+  color: var(--text-main);
+}
+
+.category-pill.active {
+  background: var(--primary);
+  color: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
 /* 预设网格 */
 .preset-grid {
   display: grid;

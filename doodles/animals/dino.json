@@ -3444,5 +3444,9 @@
       }
     ],
     "totalFragments": 12
-  }
+  },
+  "category": "animals",
+  "categoryName": "萌宠动物 🐾",
+  "fileName": "dino.json",
+  "filePath": "animals/dino.json"
 }

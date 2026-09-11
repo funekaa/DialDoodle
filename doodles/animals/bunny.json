@@ -4553,5 +4553,9 @@
       }
     ],
     "totalFragments": 12
-  }
+  },
+  "category": "animals",
+  "categoryName": "萌宠动物 🐾",
+  "fileName": "bunny.json",
+  "filePath": "animals/bunny.json"
 }

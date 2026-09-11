@@ -129,18 +129,31 @@
         <!-- 基本元数据 -->
         <div class="form-row">
           <div class="form-group" style="flex: 1.2;">
-            <label class="form-label" for="inputDoodleId">图案文件夹 ID (英文/拼音)</label>
-            <input type="text" id="inputDoodleId" class="form-input" value="panda" placeholder="如 panda, cat">
+            <label class="form-label" for="inputDoodleCategory">所属分类 (分类文件夹)</label>
+            <select id="inputDoodleCategory" class="form-input">
+              <option value="animals" data-name="萌宠动物 🐾" selected>animals (萌宠动物 🐾)</option>
+              <option value="toys" data-name="玩具交通 🚗">toys (玩具交通 🚗)</option>
+              <option value="daily" data-name="生活用品 ⏰">daily (生活用品 ⏰)</option>
+              <option value="still_life" data-name="趣味静物 ⛄">still_life (趣味静物 ⛄)</option>
+              <option value="plants" data-name="花草植物 🌿">plants (花草植物 🌿)</option>
+              <option value="custom" data-name="自定义分类 📁">custom (自定义分类...)</option>
+            </select>
           </div>
           <div class="form-group" style="flex: 0.8;">
-            <label class="form-label" for="inputDoodleIcon">图标 Emoji</label>
-            <input type="text" id="inputDoodleIcon" class="form-input" value="🐼" placeholder="如 🐼">
+            <label class="form-label" for="inputDoodleId">图形标识 / 文件名</label>
+            <input type="text" id="inputDoodleId" class="form-input" value="panda" placeholder="如 panda, desk">
           </div>
         </div>
 
-        <div class="form-group" style="margin-bottom: 10px;">
-          <label class="form-label" for="inputDoodleName">图案显示名称</label>
-          <input type="text" id="inputDoodleName" class="form-input" value="呆萌大熊猫 🐼" placeholder="如 呆萌大熊猫 🐼">
+        <div class="form-row">
+          <div class="form-group" style="flex: 1.5;">
+            <label class="form-label" for="inputDoodleName">图案显示名称</label>
+            <input type="text" id="inputDoodleName" class="form-input" value="呆萌大熊猫 🐼" placeholder="如 呆萌大熊猫 🐼">
+          </div>
+          <div class="form-group" style="flex: 0.5;">
+            <label class="form-label" for="inputDoodleIcon">图标</label>
+            <input type="text" id="inputDoodleIcon" class="form-input" value="🐼" placeholder="如 🐼">
+          </div>
         </div>
 
         <div class="form-group" style="margin-bottom: 14px;">
@@ -263,15 +276,15 @@
         </div>
 
         <button class="btn btn-success" id="btnDownloadDataJson" style="width: 100%; padding: 10px; font-size: 14px; font-weight: 700;">
-          💾 下载该简笔画 data.json
+          💾 下载该简笔画 <span id="downloadBtnFileName">panda.json</span>
         </button>
 
         <div class="file-guide">
-          <strong>📂 存入指引 (秒级生效无需重启)：</strong>
+          <strong>📂 存入指引 (按分类文件夹管理，单个 JSON 文件秒级生效)：</strong>
           <ol>
-            <li>在项目 <code>doodles/</code> 目录下新建文件夹：<br><strong id="guideFolderText">doodles/panda/</strong></li>
-            <li>将下载的 <code>data.json</code> 放入该文件夹。</li>
-            <li>复制下方配置片段追加到 <code>doodles/manifest.json</code>：</li>
+            <li>将下载的文件放入分类文件夹：<br><strong id="guideFolderText">doodles/animals/panda.json</strong></li>
+            <li>（如果该分类文件夹不存在，请在 <code>doodles/</code> 下新建同名文件夹）</li>
+            <li>复制下方配置片段追加到 <code>doodles/manifest.json</code> 的 <code>doodles</code> 列表中：</li>
           </ol>
         </div>
 
